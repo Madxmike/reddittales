@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	API_ENDPOINT = "https://www.voicery.com/api/generate"
+	API_ENDPOINT     = "https://www.voicery.com/api/generate"
+	PATH_TALES_JSON  = "tales/"
+	PATH_VOICE_CLIPS = "voiceclips/"
 )
 
 type TextData struct {
@@ -23,44 +25,81 @@ type TextData struct {
 }
 
 func main() {
-	data, err := loadAllData("tales/")
-	log.Println(len(data))
-	log.Println(err)
+	data, err := loadAllData(PATH_TALES_JSON)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for name, d := range data {
-		resp, err := GetVoiceClip(http.DefaultClient, d)
+		b, err := GetVoiceClip(http.DefaultClient, d)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		file, err := os.Create("voiceclips/" + strings.Trim(name, ".json") + ".mp3")
-		defer file.Close()
-		if err != nil {
-			panic(err)
-		}
-		bytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-		_, err = file.Write(bytes)
-
+		err = SaveVoiceFile(PATH_VOICE_CLIPS, strings.Trim(name, ".json"), b)
 		log.Println(err)
 	}
-
 }
 
-func GetVoiceClip(client *http.Client, data TextData) (*http.Response, error) {
+func GetVoiceClip(client *http.Client, data TextData) ([]byte, error) {
 	req, err := http.NewRequest("GET", API_ENDPOINT, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to get voice clip")
+		return nil, errors.Wrap(err, "unable to create request")
 	}
+
 	query := req.URL.Query()
-	query.Add("text", data.Text)
+	query.Add("text", "text")
 	query.Add("speaker", data.Speaker)
 	query.Add("style", data.Style)
 	query.Add("ssml", data.SSML)
-	req.URL.RawQuery = query.Encode()
-	return client.Do(req)
+	bytes := make([]byte, 0)
+	for _, text := range SplitText(data.Text) {
+		query.Set("text", text)
+		req.URL.RawQuery = query.Encode()
+		log.Printf("Requesting %s", req.URL.RequestURI())
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to request voice clip\n")
+		}
+		log.Println(resp.Status)
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to read response")
+		}
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("could not get voice clip for %s", text)
+		}
+		bytes = append(bytes, b...)
+	}
+
+	return bytes, nil
+}
+
+func SplitText(text string) []string {
+	split := strings.Split(text, ".")
+	n := 0
+	for _, s := range split {
+		if len(s) > 0 {
+			split[n] = s
+			n++
+		}
+	}
+	split = split[:n]
+	return split
+}
+
+func SaveVoiceFile(path string, name string, b []byte) error {
+	fileName := path + name + ".mp3"
+	file, err := os.Create(fileName)
+	if err != nil {
+		return errors.Wrap(err, "could not create save file")
+	}
+	defer file.Close()
+	_, err = file.Write(b)
+	if err != nil {
+		return errors.Wrap(err, "could not write to save file")
+	}
+
+	return nil
 }
 
 func loadAllData(path string) (map[string]TextData, error) {
@@ -87,10 +126,10 @@ func loadAllData(path string) (map[string]TextData, error) {
 
 func loadData(fileName string) (data TextData, err error) {
 	file, err := os.Open(fileName)
-	defer file.Close()
 	if err != nil {
 		return
 	}
+	defer file.Close()
 
 	err = json.NewDecoder(file).Decode(&data)
 	if err != nil {
