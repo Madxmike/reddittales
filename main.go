@@ -14,7 +14,7 @@ import (
 const (
 	API_ENDPOINT     = "https://www.voicery.com/api/generate"
 	PATH_TALES_JSON  = "tales/"
-	PATH_VOICE_CLIPS = "voiceclips/"
+	PATH_VOICE_CLIPS = "C:/Users/Michael/Desktop/Tales/Recordings/"
 )
 
 type TextData struct {
@@ -42,6 +42,14 @@ func main() {
 			log.Fatal(err)
 		}
 		err = SaveVoiceFile(PATH_VOICE_CLIPS, trimmedName, b)
+
+		b, err = ProcessVoiceRequest(http.DefaultClient, d.Title, d.Speaker, d.Style, d.SSML)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		err = SaveVoiceFile(PATH_VOICE_CLIPS, trimmedName+"_title", b)
+
 		log.Println(err)
 	}
 }
@@ -54,13 +62,9 @@ func VoiceClipExists(path string, name string) bool {
 func GetVoiceClip(client *http.Client, data TextData) ([]byte, error) {
 
 	bytes := make([]byte, 0)
-	b, err := ProcessVoiceRequest(client, data.Title, data.Speaker, data.Style, data.SSML)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not process title")
-	}
-	bytes = append(bytes, b...)
+
 	for _, text := range SplitText(data.Text) {
-		b, err = ProcessVoiceRequest(client, text, data.Speaker, data.Style, data.SSML)
+		b, err := ProcessVoiceRequest(client, text, data.Speaker, data.Style, data.SSML)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not process text")
 		}
