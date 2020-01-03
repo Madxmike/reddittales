@@ -41,10 +41,12 @@ func main() {
 
 	//_ = GenerateAllScreenshots(data, server, PATH_SCREEN_SHOTS)
 
-	err = GenerateAllVoiceClips(data, false)
-	if err != nil {
-		log.Println(err)
-	}
+	//err = GenerateAllVoiceClips(data, false)
+	//if err != nil {
+	//	log.Println(err)
+	//}
+	_ = SplitAll(data)
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
