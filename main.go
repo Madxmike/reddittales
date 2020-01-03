@@ -30,6 +30,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	server := Server{
+		Port:         "3000",
+		TemplatePath: "template.html",
+		Render:       make(chan TextData),
+		data:         TextData{},
+	}
+
+	go server.Start()
 
 	for name, d := range data {
 		trimmedName := strings.Trim(name, ".json")
