@@ -15,6 +15,11 @@ func SplitAll(data map[string]Data) error {
 	return nil
 }
 
+func Combine(name string, data Data, splicePath string) error {
+
+	return nil
+}
+
 func Splice(name string, data Data, voicePath string, screenshotPath string, splicePath string) error {
 	for k := range SplitText(data.Text) {
 		fileName := fmt.Sprintf("%s_%d", name, k)
