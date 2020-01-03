@@ -14,7 +14,7 @@ import (
 const (
 	API_ENDPOINT      = "https://www.voicery.com/api/generate"
 	PATH_TALES_JSON   = "tales/"
-	PATH_VOICE_CLIPS  = "C:/Users/Michael/Desktop/Tales/Recordings/"
+	PATH_VOICE_CLIPS  = "voiceclips/"
 	PATH_SCREEN_SHOTS = "shots/"
 )
 
@@ -37,12 +37,9 @@ func main() {
 		templatePath: "template.html",
 		data:         Data{},
 	}
-	log.Println("test")
-
 	go server.Start()
-	log.Println("server started")
 
-	_ = GenerateAllScreenshots(data, server, PATH_SCREEN_SHOTS)
+	//_ = GenerateAllScreenshots(data, server, PATH_SCREEN_SHOTS)
 
 	err = GenerateAllVoiceClips(data, false)
 	if err != nil {

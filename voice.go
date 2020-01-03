@@ -6,48 +6,49 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 func GenerateAllVoiceClips(data map[string]Data, force bool) error {
+	log.Println("Generating Voice clips")
 	for name, d := range data {
-		if !force && VoiceClipExists(PATH_VOICE_CLIPS, name) {
-			log.Printf("Skipping %s as it already exists!", name)
+		err := GenerateVoiceClip(name, d)
+		if err != nil {
+			log.Println(err)
 			continue
 		}
-		b, err := GetVoiceClip(http.DefaultClient, d)
-		if err != nil {
-			return errors.Wrapf(err, "could not get %s", name)
-		}
-		err = SaveVoiceFile(PATH_VOICE_CLIPS, name, b)
 
-		b, err = ProcessVoiceRequest(http.DefaultClient, d.Title)
+		b, err := ProcessVoiceRequest(http.DefaultClient, d.Title)
 		if err != nil {
 			return errors.Wrapf(err, "could not process %s", name)
 		}
 		err = SaveVoiceFile(PATH_VOICE_CLIPS, name+"_title", b)
-		log.Println(err)
 	}
+	log.Println("Finished Generating Voice Clips")
+	return nil
+}
+
+func GenerateVoiceClip(name string, data Data) error {
+	d := data
+	d.Text = ""
+	for k, text := range SplitText(data.Text) {
+		d.Text = text
+		b, err := ProcessVoiceRequest(http.DefaultClient, d.Text)
+		if err != nil {
+			return errors.Wrap(err, "could not process text")
+		}
+		err = SaveVoiceFile(PATH_VOICE_CLIPS, name+"_"+strconv.Itoa(k), b)
+		if err != nil {
+			return errors.Wrap(err, "could not save voice clip")
+		}
+	}
+
 	return nil
 }
 
 func VoiceClipExists(path string, name string) bool {
 	_, err := os.Open(path + name + ".mp3")
 	return err == nil
-}
-
-func GetVoiceClip(client *http.Client, data Data) ([]byte, error) {
-
-	bytes := make([]byte, 0)
-
-	for _, text := range SplitText(data.Text) {
-		b, err := ProcessVoiceRequest(client, text)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not process text")
-		}
-		bytes = append(bytes, b...)
-	}
-
-	return bytes, nil
 }
 
 func ProcessVoiceRequest(client *http.Client, text string) ([]byte, error) {
@@ -61,12 +62,12 @@ func ProcessVoiceRequest(client *http.Client, text string) ([]byte, error) {
 	query.Add("speaker", "steven")
 	query.Add("style", "narration")
 	query.Add("ssml", "false")
+
 	req.URL.RawQuery = query.Encode()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to request voice clip\n")
 	}
-	log.Println(resp.Status)
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read response")
