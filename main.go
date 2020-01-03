@@ -17,12 +17,11 @@ const (
 	PATH_VOICE_CLIPS = "C:/Users/Michael/Desktop/Tales/Recordings/"
 )
 
-type TextData struct {
-	Title   string `json:"title"`
-	Text    string `json:"text"`
-	Speaker string `json:"speaker"`
-	Style   string `json:"style"`
-	SSML    string `json:"ssml"`
+type Data struct {
+	Username string `json:"username"`
+	Score    int    `json:"score"`
+	Title    string `json:"title"`
+	Text     string `json:"text"`
 }
 
 func main() {
@@ -34,12 +33,12 @@ func main() {
 	server := Server{
 		port:         "3000",
 		templatePath: "template.html",
-		Render:       make(chan RenderData),
-		data:         RenderData{},
+		Render:       make(chan Data),
+		data:         Data{},
 	}
 
 	go server.Start()
-	server.Render <- RenderData{
+	server.Render <- Data{
 		Username: "test",
 		Score:    100,
 		Title:    "title",
@@ -68,13 +67,13 @@ func SplitText(text string) []string {
 	return split
 }
 
-func loadAllData(path string) (map[string]TextData, error) {
+func loadAllData(path string) (map[string]Data, error) {
 	fileInfos, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not load data dir")
 	}
 
-	allData := make(map[string]TextData, len(fileInfos))
+	allData := make(map[string]Data, len(fileInfos))
 	for _, info := range fileInfos {
 		if info.IsDir() {
 			continue
@@ -91,7 +90,7 @@ func loadAllData(path string) (map[string]TextData, error) {
 	return allData, nil
 }
 
-func loadData(fileName string) (data TextData, err error) {
+func loadData(fileName string) (data Data, err error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return

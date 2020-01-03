@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func GenerateAllVoiceClips(data map[string]TextData, force bool) error {
+func GenerateAllVoiceClips(data map[string]Data, force bool) error {
 	for name, d := range data {
 		if !force && VoiceClipExists(PATH_VOICE_CLIPS, name) {
 			log.Printf("Skipping %s as it already exists!", name)
@@ -20,13 +20,14 @@ func GenerateAllVoiceClips(data map[string]TextData, force bool) error {
 		}
 		err = SaveVoiceFile(PATH_VOICE_CLIPS, name, b)
 
-		b, err = ProcessVoiceRequest(http.DefaultClient, d.Title, d.Speaker, d.Style, d.SSML)
+		b, err = ProcessVoiceRequest(http.DefaultClient, d.Title)
 		if err != nil {
 			return errors.Wrapf(err, "could not process %s", name)
 		}
 		err = SaveVoiceFile(PATH_VOICE_CLIPS, name+"_title", b)
 		log.Println(err)
 	}
+	return nil
 }
 
 func VoiceClipExists(path string, name string) bool {
@@ -34,12 +35,12 @@ func VoiceClipExists(path string, name string) bool {
 	return err == nil
 }
 
-func GetVoiceClip(client *http.Client, data TextData) ([]byte, error) {
+func GetVoiceClip(client *http.Client, data Data) ([]byte, error) {
 
 	bytes := make([]byte, 0)
 
 	for _, text := range SplitText(data.Text) {
-		b, err := ProcessVoiceRequest(client, text, data.Speaker, data.Style, data.SSML)
+		b, err := ProcessVoiceRequest(client, text)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not process text")
 		}
@@ -49,7 +50,7 @@ func GetVoiceClip(client *http.Client, data TextData) ([]byte, error) {
 	return bytes, nil
 }
 
-func ProcessVoiceRequest(client *http.Client, text, speaker, style, ssml string) ([]byte, error) {
+func ProcessVoiceRequest(client *http.Client, text string) ([]byte, error) {
 	req, err := http.NewRequest("GET", API_ENDPOINT, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to create request")
@@ -57,9 +58,9 @@ func ProcessVoiceRequest(client *http.Client, text, speaker, style, ssml string)
 
 	query := req.URL.Query()
 	query.Add("text", text)
-	query.Add("speaker", speaker)
-	query.Add("style", style)
-	query.Add("ssml", ssml)
+	query.Add("speaker", "steven")
+	query.Add("style", "narration")
+	query.Add("ssml", "false")
 	req.URL.RawQuery = query.Encode()
 	resp, err := client.Do(req)
 	if err != nil {

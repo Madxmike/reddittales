@@ -7,4 +7,5 @@ func GenerateAllScreenshots(data map[string]TextData) error {
 
 func generateScreenshot(name string, data TextData) error {
 
+	return nil
 }

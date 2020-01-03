@@ -11,15 +11,8 @@ import (
 type Server struct {
 	port         string
 	templatePath string
-	Render       chan RenderData
-	data         RenderData
-}
-
-type RenderData struct {
-	Username string `json:"username"`
-	Score    int    `json:"score"`
-	Title    string `json:"title"`
-	Text     string `json:"text"`
+	Render       chan Data
+	data         Data
 }
 
 func (server *Server) Start() {
