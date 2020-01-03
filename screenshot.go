@@ -4,10 +4,10 @@ import (
 	"fmt"
 	sshot "github.com/slotix/pageres-go-wrapper"
 	"log"
-	"os/exec"
 )
 
-func GenerateAllScreenshots(data map[string]Data, render chan<- Data, path string) error {
+func GenerateAllScreenshots(data map[string]Data, server *Server, path string) error {
+	log.Println("Generating Screenshots")
 	params := sshot.Parameters{
 		Command:   "pageres",
 		Sizes:     "1920x130",
@@ -20,22 +20,26 @@ func GenerateAllScreenshots(data map[string]Data, render chan<- Data, path strin
 	urls := []string{
 		"http://127.0.0.1:3000",
 	}
-	sshot.GetShots(urls, params)
 	for name, d := range data {
-		log.Println("generating " + name)
-
-		err := generateScreenshot(name, d, render)
+		err := generateScreenshot(name, d, server, params, urls)
 		if err != nil {
 			log.Println(err)
 		}
 	}
+
+	log.Println("Finished Generating Shootshots")
 	return nil
 }
 
-func generateScreenshot(name string, data Data, render chan<- Data) error {
-	log.Println("generating " + name)
-	render <- data
-	exec.Command("gowitness.exe", "single", "--url", "127.0.0.1:3000")
-
+func generateScreenshot(name string, data Data, server *Server, params sshot.Parameters, urls []string) error {
+	log.Printf("Generating Screenshot for %s\n", data.Title)
+	d := data
+	d.Text = ""
+	for _, text := range SplitText(data.Text) {
+		d.Text += text
+		log.Println(d.Text)
+		server.data = d
+		sshot.GetShots(urls, params)
+	}
 	return nil
 }

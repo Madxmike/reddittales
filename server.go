@@ -11,7 +11,6 @@ import (
 type Server struct {
 	port         string
 	templatePath string
-	Render       chan Data
 	data         Data
 }
 
@@ -31,11 +30,6 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) executeTemplate(w io.Writer) error {
-	select {
-	case d := <-server.Render:
-		server.data = d
-	default:
-	}
 	t, err := template.ParseGlob(server.templatePath)
 	if err != nil {
 		return errors.Wrap(err, "could not parse template file")

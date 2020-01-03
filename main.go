@@ -26,29 +26,23 @@ type Data struct {
 }
 
 func main() {
+	log.SetPrefix("[Tales] ")
 	data, err := loadAllData(PATH_TALES_JSON)
 	if err != nil {
 		log.Fatal(err)
 	}
 	//TODO - Make this passed arguments
-	server := Server{
+	server := &Server{
 		port:         "3000",
 		templatePath: "template.html",
-		Render:       make(chan Data, 1),
 		data:         Data{},
 	}
 	log.Println("test")
 
 	go server.Start()
-	server.Render <- Data{
-		Username: "test",
-		Score:    100,
-		Title:    "title",
-		Text:     "text",
-	}
 	log.Println("server started")
 
-	_ = GenerateAllScreenshots(data, server.Render, PATH_SCREEN_SHOTS)
+	_ = GenerateAllScreenshots(data, server, PATH_SCREEN_SHOTS)
 
 	err = GenerateAllVoiceClips(data, false)
 	if err != nil {
