@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	API_ENDPOINT     = "https://www.voicery.com/api/generate"
-	PATH_TALES_JSON  = "tales/"
-	PATH_VOICE_CLIPS = "C:/Users/Michael/Desktop/Tales/Recordings/"
+	API_ENDPOINT      = "https://www.voicery.com/api/generate"
+	PATH_TALES_JSON   = "tales/"
+	PATH_VOICE_CLIPS  = "C:/Users/Michael/Desktop/Tales/Recordings/"
+	PATH_SCREEN_SHOTS = "shots/"
 )
 
 type Data struct {
@@ -33,9 +34,10 @@ func main() {
 	server := Server{
 		port:         "3000",
 		templatePath: "template.html",
-		Render:       make(chan Data),
+		Render:       make(chan Data, 1),
 		data:         Data{},
 	}
+	log.Println("test")
 
 	go server.Start()
 	server.Render <- Data{
@@ -44,6 +46,9 @@ func main() {
 		Title:    "title",
 		Text:     "text",
 	}
+	log.Println("server started")
+
+	_ = GenerateAllScreenshots(data, server.Render, PATH_SCREEN_SHOTS)
 
 	err = GenerateAllVoiceClips(data, false)
 	if err != nil {
