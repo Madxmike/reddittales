@@ -6,8 +6,8 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 )
 
@@ -30,36 +30,29 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	//TODO - Make this passed arguments
 	server := Server{
-		Port:         "3000",
-		TemplatePath: "template.html",
-		Render:       make(chan TextData),
-		data:         TextData{},
+		port:         "3000",
+		templatePath: "template.html",
+		Render:       make(chan RenderData),
+		data:         RenderData{},
 	}
 
 	go server.Start()
+	server.Render <- RenderData{
+		Username: "test",
+		Score:    100,
+		Title:    "title",
+		Text:     "text",
+	}
 
-	for name, d := range data {
-		trimmedName := strings.Trim(name, ".json")
-		if VoiceClipExists(PATH_VOICE_CLIPS, trimmedName) {
-			log.Printf("Skipping %s as it already exists!", trimmedName)
-			continue
-		}
-		b, err := GetVoiceClip(http.DefaultClient, d)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = SaveVoiceFile(PATH_VOICE_CLIPS, trimmedName, b)
-
-		b, err = ProcessVoiceRequest(http.DefaultClient, d.Title, d.Speaker, d.Style, d.SSML)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		err = SaveVoiceFile(PATH_VOICE_CLIPS, trimmedName+"_title", b)
-
+	err = GenerateAllVoiceClips(data, false)
+	if err != nil {
 		log.Println(err)
 	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
 }
 
 func SplitText(text string) []string {
@@ -91,7 +84,8 @@ func loadAllData(path string) (map[string]TextData, error) {
 			return nil, errors.Wrap(err, fmt.Sprintf("could not load data for file (%s)", info.Name()))
 		}
 
-		allData[info.Name()] = data
+		name := strings.TrimSuffix(info.Name(), ".json")
+		allData[name] = data
 	}
 
 	return allData, nil

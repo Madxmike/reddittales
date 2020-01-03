@@ -8,6 +8,27 @@ import (
 	"os"
 )
 
+func GenerateAllVoiceClips(data map[string]TextData, force bool) error {
+	for name, d := range data {
+		if !force && VoiceClipExists(PATH_VOICE_CLIPS, name) {
+			log.Printf("Skipping %s as it already exists!", name)
+			continue
+		}
+		b, err := GetVoiceClip(http.DefaultClient, d)
+		if err != nil {
+			return errors.Wrapf(err, "could not get %s", name)
+		}
+		err = SaveVoiceFile(PATH_VOICE_CLIPS, name, b)
+
+		b, err = ProcessVoiceRequest(http.DefaultClient, d.Title, d.Speaker, d.Style, d.SSML)
+		if err != nil {
+			return errors.Wrapf(err, "could not process %s", name)
+		}
+		err = SaveVoiceFile(PATH_VOICE_CLIPS, name+"_title", b)
+		log.Println(err)
+	}
+}
+
 func VoiceClipExists(path string, name string) bool {
 	_, err := os.Open(path + name + ".mp3")
 	return err == nil
