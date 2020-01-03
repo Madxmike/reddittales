@@ -10,9 +10,9 @@ func GenerateAllScreenshots(data map[string]Data, server *Server, path string) e
 	log.Println("Generating Screenshots")
 	params := sshot.Parameters{
 		Command:   "pageres",
-		Sizes:     "1920x130",
+		Sizes:     "860x1000",
 		Crop:      "--crop",
-		Scale:     "--scale 0.9",
+		Scale:     "--scale 1",
 		Timeout:   "--timeout 30",
 		Filename:  fmt.Sprintf("--filename=%s/<%%= url %%>", path),
 		UserAgent: "",
@@ -35,9 +35,11 @@ func generateScreenshot(name string, data Data, server *Server, params sshot.Par
 	log.Printf("Generating Screenshot for %s\n", data.Title)
 	d := data
 	d.Text = ""
-	for _, text := range SplitText(data.Text) {
+	splitText := SplitText(data.Text)
+	//baseHeight := 200
+	//height := baseHeight + (len(splitText)
+	for _, text := range splitText {
 		d.Text += text
-		log.Println(d.Text)
 		server.data = d
 		sshot.GetShots(urls, params)
 	}

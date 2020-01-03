@@ -54,7 +54,7 @@ func main() {
 }
 
 func SplitText(text string) []string {
-	split := strings.Split(text, ".")
+	split := strings.SplitAfter(text, ".")
 	n := 0
 	for _, s := range split {
 		if len(s) > 0 {
