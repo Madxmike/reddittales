@@ -5,14 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	sshot "github.com/slotix/pageres-go-wrapper"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 )
 
 const (
@@ -30,65 +27,6 @@ type Data struct {
 	Text     string `json:"text"`
 }
 
-type Bot struct {
-	wg            *sync.WaitGroup
-	server        Server
-	voiceGen      VoiceGenerator
-	screenshotGen ScreenshotGenerator
-}
-
-func NewBot() Bot {
-	server := Server{
-		port:         "3000",
-		templatePath: "template.html",
-		Input:        make(chan Data),
-		data:         Data{},
-	}
-	var wg sync.WaitGroup
-	return Bot{
-		wg:     &wg,
-		server: server,
-		voiceGen: VoiceGenerator{
-			wg:       &wg,
-			Client:   http.DefaultClient,
-			Input:    make(chan Data),
-			FileType: ".mp3",
-			Path:     PATH_VOICE_CLIPS,
-		},
-		screenshotGen: ScreenshotGenerator{
-			wg:    &wg,
-			Input: make(chan Data),
-			path:  PATH_SCREEN_SHOTS,
-			params: sshot.Parameters{
-				Command: "pageres",
-				Sizes:   "1024x768",
-				Crop:    "--crop",
-				Scale:   "--scale 0.9",
-				Timeout: "--timeout 30",
-			},
-			serverAddr:   "http://127.0.0.1:" + server.port,
-			serverUpload: server.Input,
-		},
-	}
-}
-
-func (bot *Bot) Start(ctx context.Context) {
-	go bot.server.Start(ctx)
-	go bot.voiceGen.Start(ctx)
-	go bot.screenshotGen.Start(ctx)
-}
-
-func (bot *Bot) Process(data Data) {
-	log.Printf("Processing %s\n", data.ID)
-
-	bot.wg.Add(2)
-	bot.voiceGen.Input <- data
-	bot.screenshotGen.Input <- data
-	//TODO - Splitter
-	bot.wg.Wait()
-	log.Println("Both done")
-}
-
 func main() {
 	log.SetPrefix("[Tales] ")
 	data, err := loadAllData(PATH_TALES_JSON)
@@ -98,7 +36,7 @@ func main() {
 
 	ctx := context.Background()
 	bot := NewBot()
-	bot.Start(ctx)
+	go bot.Start(ctx)
 
 	for _, d := range data {
 		bot.Process(d)
