@@ -42,7 +42,7 @@ func NewBot() Bot {
 		Count:   0,
 		Show:    "",
 		Article: "",
-	}, "redditdev")
+	}, "maliciouscompliance")
 	if err != nil {
 		panic(err)
 	}

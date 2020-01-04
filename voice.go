@@ -36,7 +36,9 @@ func (v *VoiceGenerator) Start(ctx context.Context) {
 
 func (v *VoiceGenerator) generate(data Data) error {
 	log.Printf("Generating voice clips for %s\n", data.ID)
-	for k, text := range data.Lines() {
+	lines := data.Lines()
+	lines = append([]string{data.Title}, lines...)
+	for k, text := range lines {
 		b, err := v.processRequest(text)
 		if err != nil {
 			return errors.Wrap(err, "could not generate voice clips")

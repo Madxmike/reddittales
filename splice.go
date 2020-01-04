@@ -20,21 +20,9 @@ func (s *Splicer) Start(ctx context.Context) {
 	for {
 		select {
 		case in := <-s.Input:
-			err := s.splice(in)
+			err := s.process(in)
 			if err != nil {
-				log.Println(err)
-			}
-			err = s.cleanup(s.screenshotDir(in))
-			if err != nil {
-				log.Println(err)
-			}
-			err = s.cleanup(s.voiceDir(in))
-			if err != nil {
-				log.Println(err)
-			}
-			err = s.cleanup(s.outputDir(in))
-			if err != nil {
-				log.Println(err)
+
 			}
 		case <-ctx.Done():
 			return
@@ -42,19 +30,70 @@ func (s *Splicer) Start(ctx context.Context) {
 	}
 }
 
-func (s *Splicer) splice(data Data) error {
+func (s *Splicer) process(data Data) error {
+	fileNames, err := s.splice(data)
+	if err != nil {
+		log.Println(err)
+	}
+	err = s.combine(s.outputDir(data), fileNames)
+	err = s.cleanupAll(data)
+	if err != nil {
+		log.Println(err)
+	}
+	return nil
+}
+
+func (s *Splicer) splice(data Data) ([]string, error) {
 	_ = os.Mkdir(s.outputDir(data), os.ModeDir)
-	for k := range data.Lines() {
+	lines := data.Lines()
+	fileNames := make([]string, 0)
+	for k := range lines {
+		outputFileName := fmt.Sprintf("%d.mkv", k)
 		ssName := fmt.Sprintf("%s%d.png", s.screenshotDir(data), k)
 		voiceName := fmt.Sprintf("%s%d.mp3", s.voiceDir(data), k)
-		spliceName := fmt.Sprintf("%s%d.mkv", s.outputDir(data), k)
-		args := []string{
-			"-loop", "1", "-framerate", "2", "-i", ssName, "-i", voiceName, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", spliceName,
-		}
-		err := exec.Command("ffmpeg", args...).Run()
+		spliceName := fmt.Sprintf("%s%s", s.outputDir(data), outputFileName)
+		err := s.execute("-loop", "1", "-framerate", "2", "-i", ssName, "-i", voiceName, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", spliceName)
 		if err != nil {
-			return errors.Wrap(err, "could not splice files")
+			return nil, errors.Wrap(err, "could not splice files")
 		}
+
+		fileNames = append(fileNames, outputFileName)
+	}
+
+	return fileNames, nil
+}
+
+func (s *Splicer) combine(path string, fileNames []string) error {
+	outputFileName := path + "filenames.txt"
+	file, err := os.Create(outputFileName)
+	if err != nil {
+		return errors.Wrap(err, "could not create filenames file")
+	}
+	for _, name := range fileNames {
+
+		write := fmt.Sprintf("file '%s' \n", name)
+		_, err = file.WriteString(write)
+		if err != nil {
+			return errors.Wrapf(err, "could not write \"%s\" to file", write)
+		}
+	}
+	file.Close()
+
+	err = s.execute("-f", "concat", "-safe", "0", "-i", outputFileName, "-c", "copy", path+"output.mkv")
+	if err != nil {
+		return errors.Wrap(err, "could not combine files")
+	}
+	return nil
+}
+
+func (s *Splicer) execute(args ...string) error {
+	log.Println("Executing: ffmpeg", args)
+	cmd := exec.Command("ffmpeg", args...)
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Run()
+	if err != nil {
+		return errors.Wrap(err, "could not execute ffmpeg")
 	}
 
 	return nil
@@ -65,6 +104,22 @@ func (s *Splicer) cleanup(dir string) error {
 	if err != nil {
 		return errors.Wrapf(err, "could not remove all files from %s", dir)
 	}
+	return nil
+}
+
+func (s *Splicer) cleanupAll(data Data) error {
+	err := s.cleanup(s.screenshotDir(data))
+	if err != nil {
+		return err
+	}
+	err = s.cleanup(s.voiceDir(data))
+	if err != nil {
+		return err
+	}
+	//err = s.cleanup(s.outputDir(data))
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 
