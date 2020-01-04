@@ -1,57 +1,51 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 )
 
-func GenerateAllVoiceClips(data map[string]Data, force bool) error {
-	log.Println("Generating Voice clips")
-	for name, d := range data {
-		err := GenerateVoiceClip(name, d)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-
-		b, err := ProcessVoiceRequest(http.DefaultClient, d.Title)
-		if err != nil {
-			return errors.Wrapf(err, "could not process %s", name)
-		}
-		err = SaveVoiceFile(PATH_VOICE_CLIPS, name+"_title", b)
-	}
-	log.Println("Finished Generating Voice Clips")
-	return nil
+type VoiceGenerator struct {
+	Client   *http.Client
+	Input    chan Data
+	FileType string
+	Path     string
 }
 
-func GenerateVoiceClip(name string, data Data) error {
-	d := data
-	d.Text = ""
+func (v *VoiceGenerator) Start(ctx context.Context) {
+	for {
+		select {
+		case in := <-v.Input:
+			err := v.generate(in)
+			if err != nil {
+				log.Println(err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (v *VoiceGenerator) generate(data Data) error {
 	for k, text := range SplitText(data.Text) {
-		d.Text = text
-		b, err := ProcessVoiceRequest(http.DefaultClient, d.Text)
+		b, err := v.processRequest(text)
 		if err != nil {
-			return errors.Wrap(err, "could not process text")
+			return errors.Wrap(err, "could not generate voice clips")
 		}
-		err = SaveVoiceFile(PATH_VOICE_CLIPS, name+"_"+strconv.Itoa(k), b)
+		err = v.saveFile(data.ID, k, b)
 		if err != nil {
-			return errors.Wrap(err, "could not save voice clip")
+			return errors.Wrap(err, "could not save voice clips files")
 		}
 	}
-
 	return nil
 }
 
-func VoiceClipExists(path string, name string) bool {
-	_, err := os.Open(path + name + ".mp3")
-	return err == nil
-}
-
-func ProcessVoiceRequest(client *http.Client, text string) ([]byte, error) {
+func (v *VoiceGenerator) processRequest(text string) ([]byte, error) {
 	req, err := http.NewRequest("GET", API_ENDPOINT, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to create request")
@@ -64,7 +58,7 @@ func ProcessVoiceRequest(client *http.Client, text string) ([]byte, error) {
 	query.Add("ssml", "false")
 
 	req.URL.RawQuery = query.Encode()
-	resp, err := client.Do(req)
+	resp, err := v.Client.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to request voice clip\n")
 	}
@@ -78,17 +72,17 @@ func ProcessVoiceRequest(client *http.Client, text string) ([]byte, error) {
 	return b, nil
 }
 
-func SaveVoiceFile(path string, name string, b []byte) error {
-	fileName := path + name + ".mp3"
+func (v *VoiceGenerator) saveFile(name string, n int, b []byte) error {
+	_ = os.Mkdir(v.Path+name, os.ModeDir)
+	fileName := fmt.Sprintf("%s%s/%d%s", v.Path, name, n, v.FileType)
 	file, err := os.Create(fileName)
 	if err != nil {
-		return errors.Wrap(err, "could not create save file")
+		return errors.Wrapf(err, "could not create %s_%d", name, n)
 	}
 	defer file.Close()
 	_, err = file.Write(b)
 	if err != nil {
-		return errors.Wrap(err, "could not write to save file")
+		return errors.Wrapf(err, "could not write %s_%d", name, n)
 	}
-
 	return nil
 }

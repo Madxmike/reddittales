@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"html/template"
 	"io"
@@ -11,10 +12,23 @@ import (
 type Server struct {
 	port         string
 	templatePath string
+	Input        chan Data
 	data         Data
 }
 
-func (server *Server) Start() {
+func (server *Server) Start(ctx context.Context) {
+	go func() {
+		for {
+			select {
+			case data := <-server.Input:
+				server.data = data
+			case <-ctx.Done():
+				return
+			}
+			server.data = <-server.Input
+		}
+	}()
+
 	err := http.ListenAndServe(":"+server.port, server)
 	if err != nil {
 		panic(err)
