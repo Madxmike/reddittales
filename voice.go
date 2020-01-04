@@ -1,10 +1,11 @@
 package main
 
 import (
+	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
+	texttospeechpb "google.golang.org/genproto/googleapis/cloud/texttospeech/v1"
 	"log"
 	"net/http"
 	"os"
@@ -50,32 +51,30 @@ func (v *VoiceGenerator) generate(data Data) error {
 }
 
 func (v *VoiceGenerator) processRequest(text string) ([]byte, error) {
-	req, err := http.NewRequest("GET", API_ENDPOINT, nil)
+	ctx := context.Background()
+	client, err := texttospeech.NewClient(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to create request")
+		return nil, errors.Wrap(err, "could not start tts client")
 	}
 
-	query := req.URL.Query()
-	query.Add("text", text)
-	query.Add("speaker", "steven")
-	query.Add("style", "narration")
-	query.Add("ssml", "false")
+	req := texttospeechpb.SynthesizeSpeechRequest{
+		Input: &texttospeechpb.SynthesisInput{
+			InputSource: &texttospeechpb.SynthesisInput_Text{Text: text},
+		},
+		Voice: &texttospeechpb.VoiceSelectionParams{
+			LanguageCode: "en-US",
+			SsmlGender:   texttospeechpb.SsmlVoiceGender_NEUTRAL,
+		},
+		AudioConfig: &texttospeechpb.AudioConfig{
+			AudioEncoding: texttospeechpb.AudioEncoding_MP3,
+		},
+	}
 
-	req.URL.RawQuery = query.Encode()
-	log.Println(req.URL.String())
-	resp, err := v.Client.Do(req)
+	resp, err := client.SynthesizeSpeech(ctx, &req)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to request voice clip\n")
+		return nil, errors.Wrap(err, "could not synthesize text")
 	}
-	log.Println(resp.Status)
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to read response")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("could not get voice clip")
-	}
-	return b, nil
+	return resp.AudioContent, nil
 }
 
 func (v *VoiceGenerator) saveFile(name string, n int, b []byte) error {

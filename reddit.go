@@ -8,15 +8,6 @@ import (
 	"time"
 )
 
-type Secrets struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-	Agent        string `json:"agent,omitempty"`
-	RedirectURL  string `json:"redirect_url,omitempty"`
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-}
-
 type RedditGenerator struct {
 	reddit            *geddit.OAuthSession
 	Output            chan Data
@@ -27,7 +18,7 @@ type RedditGenerator struct {
 }
 
 func NewRedditGenerator(secrets Secrets, pollInterval time.Duration, sort geddit.PopularitySort, options geddit.ListingOptions, watchedSubreddit ...string) (*RedditGenerator, error) {
-	OAuth, err := geddit.NewOAuthSession(secrets.ClientID, secrets.ClientSecret, secrets.Agent, secrets.RedirectURL)
+	OAuth, err := geddit.NewOAuthSession(secrets.ClientID, secrets.ClientSecret, secrets.UserAgent, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "could not establish reddit connection")
 	}
