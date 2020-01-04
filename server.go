@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/pkg/errors"
+	stripmd "github.com/writeas/go-strip-markdown"
 	"html/template"
 	"io"
 	"log"
@@ -44,10 +45,12 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) executeTemplate(w io.Writer) error {
+
 	t, err := template.ParseGlob(server.templatePath)
 	if err != nil {
 		return errors.Wrap(err, "could not parse template file")
 	}
+	server.data.Text = stripmd.Strip(server.data.Text)
 	err = t.ExecuteTemplate(w, "index", server.data)
 	if err != nil {
 		return errors.Wrap(err, "could not execute template file")

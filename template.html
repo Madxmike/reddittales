@@ -7,11 +7,41 @@
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>Document</title>
     </head>
-    <body style="background-color: 	#333333; color: white; font-family: verdana, arial, helvetica, sans-serif; padding: 1%">
-        <h4  style="margin: 0">{{.Title}}</h4>
-        <sub style="margin: 0">submitted by {{.Username}}</sub>
-        <div style="white-space: pre-wrap; border-color: gray; border-left-style: solid; padding-left: 1%; padding-right: 2%; margin-top: 1%">{{.Text}}</div>
-        <div style="margin-top: 1%">Share Report Save </div>
+    <style>
+        body {
+            background-color: 	#333333;
+            color: white;
+            font-family: verdana, arial, helvetica, sans-serif;
+            padding: 1%;
+        }
+
+        body:link {
+            color: white;
+            text-underline: none;
+        }
+
+        body * {
+            margin: 0;
+        }
+
+        #text {
+            white-space: pre-wrap;
+            border-color: gray;
+            border-left-style: solid;
+            padding-left: 1%;
+            padding-right: 2%;
+            margin-top: 1%
+        }
+
+        #faux_buttons {
+            margin-top: 1%
+        }
+    </style>
+    <body>
+        <h4>{{.Title}}</h4>
+        <sub>submitted by {{.Username}}</sub>
+        <div id="text">{{.Text}}</div>
+        <div id="faux_buttons">Share Report Save </div>
     </body>
     </html>
 {{end}}
