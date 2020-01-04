@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 )
 
 const (
@@ -30,6 +31,7 @@ type Data struct {
 }
 
 type Bot struct {
+	wg            *sync.WaitGroup
 	server        Server
 	voiceGen      VoiceGenerator
 	screenshotGen ScreenshotGenerator
@@ -42,15 +44,19 @@ func NewBot() Bot {
 		Input:        make(chan Data),
 		data:         Data{},
 	}
+	var wg sync.WaitGroup
 	return Bot{
+		wg:     &wg,
 		server: server,
 		voiceGen: VoiceGenerator{
+			wg:       &wg,
 			Client:   http.DefaultClient,
 			Input:    make(chan Data),
 			FileType: ".mp3",
 			Path:     PATH_VOICE_CLIPS,
 		},
 		screenshotGen: ScreenshotGenerator{
+			wg:    &wg,
 			Input: make(chan Data),
 			path:  PATH_SCREEN_SHOTS,
 			params: sshot.Parameters{
@@ -74,9 +80,13 @@ func (bot *Bot) Start(ctx context.Context) {
 
 func (bot *Bot) Process(data Data) {
 	log.Printf("Processing %s\n", data.ID)
+
+	bot.wg.Add(2)
 	bot.voiceGen.Input <- data
 	bot.screenshotGen.Input <- data
 	//TODO - Splitter
+	bot.wg.Wait()
+	log.Println("Both done")
 }
 
 func main() {

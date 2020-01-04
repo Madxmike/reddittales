@@ -8,9 +8,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 )
 
 type VoiceGenerator struct {
+	wg       *sync.WaitGroup
 	Client   *http.Client
 	Input    chan Data
 	FileType string
@@ -25,6 +27,7 @@ func (v *VoiceGenerator) Start(ctx context.Context) {
 			if err != nil {
 				log.Println(err)
 			}
+			v.wg.Done()
 		case <-ctx.Done():
 			return
 		}
@@ -32,6 +35,7 @@ func (v *VoiceGenerator) Start(ctx context.Context) {
 }
 
 func (v *VoiceGenerator) generate(data Data) error {
+	log.Printf("Generating voice clips for %s\n", data.ID)
 	for k, text := range SplitText(data.Text) {
 		b, err := v.processRequest(text)
 		if err != nil {
@@ -42,6 +46,7 @@ func (v *VoiceGenerator) generate(data Data) error {
 			return errors.Wrap(err, "could not save voice clips files")
 		}
 	}
+	log.Printf("Finshed Generating voice clips for %s\n", data.ID)
 	return nil
 }
 

@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	sshot "github.com/slotix/pageres-go-wrapper"
+	"log"
 	"os"
+	"sync"
 )
 
 type ScreenshotGenerator struct {
+	wg           *sync.WaitGroup
 	Input        chan Data
 	path         string
 	params       sshot.Parameters
@@ -20,6 +23,7 @@ func (s *ScreenshotGenerator) Start(ctx context.Context) {
 		select {
 		case in := <-s.Input:
 			s.generate(in)
+			s.wg.Done()
 		case <-ctx.Done():
 			return
 		}
@@ -27,6 +31,8 @@ func (s *ScreenshotGenerator) Start(ctx context.Context) {
 }
 
 func (s *ScreenshotGenerator) generate(data Data) {
+	log.Printf("Generating screenshots for %s\n", data.ID)
+
 	_ = os.Mkdir(s.path+data.ID, os.ModeDir)
 	serverData := data
 	serverData.Text = ""
@@ -34,7 +40,8 @@ func (s *ScreenshotGenerator) generate(data Data) {
 		serverData.Text += text
 		s.serverUpload <- serverData
 		s.params.Filename = fmt.Sprintf("--filename=%s/%d", s.path+data.ID, k)
-
 		sshot.GetShots([]string{s.serverAddr}, s.params)
 	}
+	log.Printf("Finished generating screenshots for %s\n", data.ID)
+
 }
