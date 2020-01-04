@@ -19,6 +19,7 @@ type Bot struct {
 	redditGen     RedditGenerator
 	voiceGen      VoiceGenerator
 	screenshotGen ScreenshotGenerator
+	splicer       Splicer
 }
 
 func NewBot() Bot {
@@ -41,7 +42,7 @@ func NewBot() Bot {
 		Count:   0,
 		Show:    "",
 		Article: "",
-	}, "maliciouscompliance")
+	}, "redditdev")
 	if err != nil {
 		panic(err)
 	}
@@ -52,11 +53,10 @@ func NewBot() Bot {
 		server:    server,
 		redditGen: *redditGen,
 		voiceGen: VoiceGenerator{
-			wg:       &wg,
-			Client:   http.DefaultClient,
-			Input:    make(chan Data),
-			FileType: ".mp3",
-			Path:     PATH_VOICE_CLIPS,
+			wg:     &wg,
+			Client: http.DefaultClient,
+			Input:  make(chan Data),
+			Path:   PATH_VOICE_CLIPS,
 		},
 		screenshotGen: ScreenshotGenerator{
 			wg:    &wg,
@@ -71,6 +71,12 @@ func NewBot() Bot {
 			},
 			serverAddr:   "http://127.0.0.1:" + server.port,
 			serverUpload: server.Input,
+		},
+		splicer: Splicer{
+			Input:          make(chan Data),
+			screenshotPath: PATH_SCREEN_SHOTS,
+			voiceClipPath:  PATH_VOICE_CLIPS,
+			outputPath:     PATH_SPLICED,
 		},
 	}
 }
@@ -95,6 +101,7 @@ func (bot *Bot) Start(ctx context.Context) {
 	go bot.voiceGen.Start(ctx)
 	go bot.screenshotGen.Start(ctx)
 	go bot.redditGen.Start(ctx)
+	go bot.splicer.Start(ctx)
 
 	for {
 		select {
@@ -114,4 +121,5 @@ func (bot *Bot) Process(data Data) {
 	bot.screenshotGen.Input <- data
 	//TODO - Splitter
 	bot.wg.Wait()
+	bot.splicer.Input <- data
 }

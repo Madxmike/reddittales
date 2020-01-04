@@ -12,11 +12,10 @@ import (
 )
 
 type VoiceGenerator struct {
-	wg       *sync.WaitGroup
-	Client   *http.Client
-	Input    chan Data
-	FileType string
-	Path     string
+	wg     *sync.WaitGroup
+	Client *http.Client
+	Input  chan Data
+	Path   string
 }
 
 func (v *VoiceGenerator) Start(ctx context.Context) {
@@ -36,7 +35,7 @@ func (v *VoiceGenerator) Start(ctx context.Context) {
 
 func (v *VoiceGenerator) generate(data Data) error {
 	log.Printf("Generating voice clips for %s\n", data.ID)
-	for k, text := range SplitText(data.Text) {
+	for k, text := range data.Lines() {
 		b, err := v.processRequest(text)
 		if err != nil {
 			return errors.Wrap(err, "could not generate voice clips")
@@ -63,10 +62,12 @@ func (v *VoiceGenerator) processRequest(text string) ([]byte, error) {
 	query.Add("ssml", "false")
 
 	req.URL.RawQuery = query.Encode()
+	log.Println(req.URL.String())
 	resp, err := v.Client.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to request voice clip\n")
 	}
+	log.Println(resp.Status)
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read response")
@@ -79,7 +80,7 @@ func (v *VoiceGenerator) processRequest(text string) ([]byte, error) {
 
 func (v *VoiceGenerator) saveFile(name string, n int, b []byte) error {
 	_ = os.Mkdir(v.Path+name, os.ModeDir)
-	fileName := fmt.Sprintf("%s%s/%d%s", v.Path, name, n, v.FileType)
+	fileName := fmt.Sprintf("%s%s/%d.mp3", v.Path, name, n)
 	file, err := os.Create(fileName)
 	if err != nil {
 		return errors.Wrapf(err, "could not create %s_%d", name, n)

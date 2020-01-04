@@ -17,6 +17,7 @@ const (
 	PATH_TALES_JSON   = "tales/"
 	PATH_VOICE_CLIPS  = "voiceclips/"
 	PATH_SCREEN_SHOTS = "shots/"
+	PATH_SPLICED      = "spliced/"
 )
 
 type Data struct {
@@ -47,8 +48,8 @@ func main() {
 	<-c
 }
 
-func SplitText(text string) []string {
-	split := strings.SplitAfter(text, ".")
+func (d Data) Lines() []string {
+	split := strings.SplitAfter(d.Text, ".")
 	n := 0
 	for _, s := range split {
 		if len(s) > 0 {

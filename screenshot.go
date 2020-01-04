@@ -36,7 +36,7 @@ func (s *ScreenshotGenerator) generate(data Data) {
 	_ = os.Mkdir(s.path+data.ID, os.ModeDir)
 	serverData := data
 	serverData.Text = ""
-	for k, text := range SplitText(data.Text) {
+	for k, text := range data.Lines() {
 		serverData.Text += text
 		s.serverUpload <- serverData
 		s.params.Filename = fmt.Sprintf("--filename=%s/%d", s.path+data.ID, k)
