@@ -24,25 +24,6 @@ func (s *Splicer) Start(ctx context.Context) {
 			err := s.process(in)
 			if err != nil {
 				log.Println(err)
-				continue
-			}
-			for k, comment := range in.Comments {
-				comment.ID = fmt.Sprintf("%s/%d", in.ID, k)
-				err = s.process(comment)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-			}
-			err = s.spliceTitle(in)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			err = s.combineFinal(in)
-			if err != nil {
-				log.Println(err)
-				continue
 			}
 		case <-ctx.Done():
 			return
@@ -51,61 +32,48 @@ func (s *Splicer) Start(ctx context.Context) {
 }
 
 func (s *Splicer) process(data Data) error {
-	s.createDir(data)
-	fileNames, err := s.splice(data)
-	if err != nil {
-		log.Println(err)
-	}
-	err = s.combine(s.outputDir(data), fileNames)
-	if err != nil {
-		log.Println(err)
-	}
-
-	//err = s.cleanupAll(data)
-
-	return nil
-}
-func (s *Splicer) createDir(data Data) {
-	_ = os.Mkdir(s.outputPath+data.ID, os.ModeDir)
-}
-
-func (s *Splicer) splice(data Data) ([]string, error) {
-	lines := data.Lines()
-	fileNames := make([]string, 0)
-	for k := range lines {
-		outputFileName := fmt.Sprintf("%d.mkv", k)
-		ssName := fmt.Sprintf("%s%d.png", s.screenshotDir(data), k)
-		voiceName := fmt.Sprintf("%s%d.mp3", s.voiceDir(data), k)
-		spliceName := fmt.Sprintf("%s%s", s.outputDir(data), outputFileName)
-		err := s.executeSplit(ssName, voiceName, spliceName)
+	dirName := fmt.Sprintf("%s%s/", s.outputPath, data.ID)
+	_ = os.Mkdir(dirName, os.ModeDir)
+	for _, comment := range data.Comments {
+		comment.ID = fmt.Sprintf("%s/%s", data.ID, comment.ID)
+		err := s.process(comment)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to splice")
+			return errors.Wrap(err, "could not process comment")
 		}
-		fileNames = append(fileNames, outputFileName)
 	}
-	return fileNames, nil
-}
 
-func (s *Splicer) spliceTitle(data Data) error {
-	if data.Title == "" {
-		return nil
-	}
-	title := "title"
-	outputFileName := "output.mkv"
-	ssName := fmt.Sprintf("%s%s.png", s.screenshotDir(data), title)
-	voiceName := fmt.Sprintf("%s%s.mp3", s.voiceDir(data), title)
-	spliceName := fmt.Sprintf("%s%s", s.outputDir(data), outputFileName)
-
-	err := s.executeSplit(ssName, voiceName, spliceName)
+	outputFilename, err := s.stitchAV(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to splice")
+		return errors.Wrap(err, "could not process data")
 	}
+
+	log.Println(outputFilename)
 
 	return nil
 }
 
-func (s *Splicer) executeSplit(screenshotFileName string, voiceClipFileName string, splicedFileName string) error {
-	err := s.execute("-loop", "1", "-framerate", "2", "-i", screenshotFileName, "-i", voiceClipFileName, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", splicedFileName)
+func (s *Splicer) stitchAV(data Data) (string, error) {
+	var outputFilename string
+	lines := data.Lines()
+	if data.Title != "" {
+		lines = append([]string{data.Title}, lines...)
+	}
+
+	for k := range lines {
+		outputFilename = fmt.Sprintf("%d.mkv", k)
+		screenshotFilename := fmt.Sprintf("%s%d.png", s.screenshotDir(data), k)
+		voiceclipFilename := fmt.Sprintf("%s%d.mp3", s.voiceDir(data), k)
+		stitchedFilename := fmt.Sprintf("%s%s", s.outputDir(data), outputFilename)
+		err := s.executeStitch(screenshotFilename, voiceclipFilename, stitchedFilename)
+		if err != nil {
+			return outputFilename, errors.Wrap(err, "could not execute stitch")
+		}
+	}
+	return outputFilename, nil
+}
+
+func (s *Splicer) executeStitch(screenshotFilename, voiceClipFilename, stitchFilename string) error {
+	err := s.execute("-loop", "1", "-framerate", "2", "-i", screenshotFilename, "-i", voiceClipFilename, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", "-vf", "scale=1920:-2", stitchFilename)
 	if err != nil {
 		return errors.Wrap(err, "could not splice files")
 	}

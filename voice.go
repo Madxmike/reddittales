@@ -65,8 +65,8 @@ func (v *VoiceGenerator) generate(data Data) error {
 		}
 	}
 
-	for k, comment := range data.Comments {
-		comment.ID = fmt.Sprintf("%s/%d", data.ID, k)
+	for _, comment := range data.Comments {
+		comment.ID = fmt.Sprintf("%s/%s", data.ID, comment.ID)
 		_ = v.generate(comment)
 	}
 	return nil

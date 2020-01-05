@@ -47,7 +47,6 @@ func (s *ScreenshotGenerator) elementScreenshot(urlstr, sel string, res *[]byte)
 }
 
 func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector string) error {
-	log.Println(data.ID)
 	dirName := fmt.Sprintf("%s%s/", s.path, data.ID)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
