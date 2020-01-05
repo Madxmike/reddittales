@@ -15,9 +15,16 @@ type Server struct {
 	templatePath string
 	Input        chan Data
 	data         Data
+	temp         *template.Template
 }
 
 func (server *Server) Start(ctx context.Context) {
+	t, err := template.ParseGlob(server.templatePath)
+	if err != nil {
+		panic(err)
+	}
+	server.temp = t
+
 	go func() {
 		for {
 			select {
@@ -30,7 +37,7 @@ func (server *Server) Start(ctx context.Context) {
 		}
 	}()
 
-	err := http.ListenAndServe(":"+server.port, server)
+	err = http.ListenAndServe(":"+server.port, server)
 	if err != nil {
 		panic(err)
 	}
@@ -45,13 +52,8 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (server *Server) executeTemplate(w io.Writer) error {
-
-	t, err := template.ParseGlob(server.templatePath)
-	if err != nil {
-		return errors.Wrap(err, "could not parse template file")
-	}
 	server.data.Text = stripmd.Strip(server.data.Text)
-	err = t.ExecuteTemplate(w, "index", server.data)
+	err := server.temp.ExecuteTemplate(w, "index", server.data)
 	if err != nil {
 		return errors.Wrap(err, "could not execute template file")
 	}

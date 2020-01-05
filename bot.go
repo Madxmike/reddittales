@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	sshot "github.com/slotix/pageres-go-wrapper"
 	"log"
 	"net/http"
 	"sync"
@@ -43,18 +42,11 @@ func NewBot(config Config, secrets Secrets) Bot {
 			Path:   PATH_VOICE_CLIPS,
 		},
 		screenshotGen: ScreenshotGenerator{
-			wg:    &wg,
-			Input: make(chan Data),
-			path:  PATH_SCREEN_SHOTS,
-			params: sshot.Parameters{
-				Command: "pageres",
-				Sizes:   "1920x1080",
-				Crop:    "--crop",
-				Scale:   "--scale 1.0",
-				Timeout: "--timeout 30",
-			},
-			serverAddr:   "http://127.0.0.1:" + server.port,
-			serverUpload: server.Input,
+			wg:         &wg,
+			Input:      make(chan Data),
+			path:       PATH_SCREEN_SHOTS,
+			serverAddr: "http://127.0.0.1:" + server.port,
+			serverSend: server.Input,
 		},
 		splicer: Splicer{
 			Input:          make(chan Data),

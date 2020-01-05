@@ -80,7 +80,6 @@ func (r *RedditGenerator) processSubmission(sub subreddit, submission *geddit.Su
 		}
 		submissionData.Comments = r.commentToData(comments)
 	}
-
 	r.Output <- submissionData
 	return nil
 }

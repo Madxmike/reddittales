@@ -5,10 +5,10 @@
   "subreddits": [
 
     {
-      "name": "askreddit",
+      "name": "maliciouscompliance",
       "count": 1,
       "comments": {
-        "count": 20,
+        "count": 5,
         "sort": "top",
         "includeTopSubComment": "true"
       }
