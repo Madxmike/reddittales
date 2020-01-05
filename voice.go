@@ -1,4 +1,4 @@
-package internal
+package main
 
 import (
 	texttospeech "cloud.google.com/go/texttospeech/apiv1"
@@ -37,18 +37,59 @@ func (v *VoiceGenerator) Start(ctx context.Context) {
 func (v *VoiceGenerator) generate(data Data) error {
 	log.Printf("Generating voice clips for %s\n", data.ID)
 	lines := data.Lines()
-	lines = append([]string{data.Title}, lines...)
+	v.createDir(data)
 	for k, text := range lines {
 		b, err := v.processRequest(text)
 		if err != nil {
 			return errors.Wrap(err, "could not generate voice clips")
 		}
-		err = v.saveFile(data.ID, k, b)
+		fileName := fmt.Sprintf("%s%s/%d.mp3", v.Path, data.ID, k)
+		err = v.saveFile(fileName, b)
 		if err != nil {
 			return errors.Wrap(err, "could not save voice clips files")
 		}
 	}
+
+	for k, comment := range data.Comments {
+		comment.ID = fmt.Sprintf("%s/%d", data.ID, k)
+		_ = v.generate(comment)
+	}
+	_ = v.generateTitle(data)
 	log.Printf("Finshed Generating voice clips for %s\n", data.ID)
+	return nil
+}
+
+func (v *VoiceGenerator) generateTitle(data Data) error {
+	if data.Title == "" {
+		return nil
+	}
+	b, err := v.processRequest(data.Title)
+	if err != nil {
+		return errors.Wrap(err, "could not generate title voice clip")
+	}
+	fileName := fmt.Sprintf("%s%s/title.mp3", v.Path, data.ID)
+	err = v.saveFile(fileName, b)
+	if err != nil {
+		return errors.Wrap(err, "could not save title voice clip")
+	}
+
+	return nil
+}
+
+func (v *VoiceGenerator) createDir(data Data) {
+	_ = os.Mkdir(v.Path+data.ID, os.ModeDir)
+}
+
+func (v *VoiceGenerator) saveFile(fileName string, b []byte) error {
+	file, err := os.Create(fileName)
+	if err != nil {
+		return errors.Wrapf(err, "could not create %s", fileName)
+	}
+	defer file.Close()
+	_, err = file.Write(b)
+	if err != nil {
+		return errors.Wrapf(err, "could not write %s", fileName)
+	}
 	return nil
 }
 
@@ -77,19 +118,4 @@ func (v *VoiceGenerator) processRequest(text string) ([]byte, error) {
 		return nil, errors.Wrap(err, "could not synthesize text")
 	}
 	return resp.AudioContent, nil
-}
-
-func (v *VoiceGenerator) saveFile(name string, n int, b []byte) error {
-	_ = os.Mkdir(v.Path+name, os.ModeDir)
-	fileName := fmt.Sprintf("%s%s/%d.mp3", v.Path, name, n)
-	file, err := os.Create(fileName)
-	if err != nil {
-		return errors.Wrapf(err, "could not create %s_%d", name, n)
-	}
-	defer file.Close()
-	_, err = file.Write(b)
-	if err != nil {
-		return errors.Wrapf(err, "could not write %s_%d", name, n)
-	}
-	return nil
 }

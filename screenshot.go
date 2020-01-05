@@ -1,4 +1,4 @@
-package internal
+package main
 
 import (
 	"context"
@@ -32,16 +32,31 @@ func (s *ScreenshotGenerator) Start(ctx context.Context) {
 
 func (s *ScreenshotGenerator) generate(data Data) {
 	log.Printf("Generating screenshots for %s\n", data.ID)
-
 	_ = os.Mkdir(s.path+data.ID, os.ModeDir)
+	lines := data.Lines()
 	serverData := data
 	serverData.Text = ""
-	for k, text := range data.Lines() {
+	s.generateTitle(data)
+	for k, text := range lines {
+		serverData.Text += text
 		s.serverUpload <- serverData
 		s.params.Filename = fmt.Sprintf("--filename=%s/%d", s.path+data.ID, k)
 		sshot.GetShots([]string{s.serverAddr}, s.params)
-		serverData.Text += text
+	}
+
+	for k, comment := range data.Comments {
+		comment.ID = fmt.Sprintf("%s/%d", data.ID, k)
+		s.generate(comment)
 	}
 	log.Printf("Finished generating screenshots for %s\n", data.ID)
+}
 
+func (s *ScreenshotGenerator) generateTitle(data Data) {
+	if data.Title != "" {
+		serverData := data
+		serverData.Text = ""
+		s.serverUpload <- serverData
+		s.params.Filename = fmt.Sprintf("--filename=%s/title", s.path+data.ID)
+		sshot.GetShots([]string{s.serverAddr}, s.params)
+	}
 }

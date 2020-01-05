@@ -1,4 +1,4 @@
-package internal
+package main
 
 import (
 	"encoding/json"
@@ -15,6 +15,7 @@ type Data struct {
 	Score    int    `json:"score"`
 	Title    string `json:"title"`
 	Text     string `json:"text"`
+	Comments []Data `json:"comments"`
 }
 
 func (d Data) Lines() []string {

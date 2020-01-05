@@ -1,14 +1,10 @@
-package internal
+package main
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/jzelinskie/geddit"
-	"github.com/pkg/errors"
 	sshot "github.com/slotix/pageres-go-wrapper"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 )
@@ -22,27 +18,15 @@ type Bot struct {
 	splicer       Splicer
 }
 
-func NewBot(voicePath, screenshotPath, splicePath string) Bot {
+func NewBot(config Config, secrets Secrets) Bot {
 	server := Server{
-		port:         "3000",
+		port:         config.Server.Port,
 		templatePath: "template.html",
 		Input:        make(chan Data),
 		data:         Data{},
 	}
 
-	secrets, err := loadSecrets("secrets.json")
-	if err != nil {
-		panic(err)
-	}
-	redditGen, err := NewRedditGenerator(secrets, 5*time.Second, geddit.TopSubmissions, geddit.ListingOptions{
-		Time:    geddit.ThisDay,
-		Limit:   3,
-		After:   "",
-		Before:  "",
-		Count:   0,
-		Show:    "",
-		Article: "",
-	}, "maliciouscompliance")
+	redditGen, err := NewRedditGenerator(secrets, 5*time.Second, config.Subreddits)
 	if err != nil {
 		panic(err)
 	}
@@ -56,12 +40,12 @@ func NewBot(voicePath, screenshotPath, splicePath string) Bot {
 			wg:     &wg,
 			Client: http.DefaultClient,
 			Input:  make(chan Data),
-			Path:   voicePath,
+			Path:   PATH_VOICE_CLIPS,
 		},
 		screenshotGen: ScreenshotGenerator{
 			wg:    &wg,
 			Input: make(chan Data),
-			path:  screenshotPath,
+			path:  PATH_SCREEN_SHOTS,
 			params: sshot.Parameters{
 				Command: "pageres",
 				Sizes:   "1920x1080",
@@ -74,26 +58,11 @@ func NewBot(voicePath, screenshotPath, splicePath string) Bot {
 		},
 		splicer: Splicer{
 			Input:          make(chan Data),
-			screenshotPath: screenshotPath,
-			voiceClipPath:  voicePath,
-			outputPath:     splicePath,
+			screenshotPath: PATH_SCREEN_SHOTS,
+			voiceClipPath:  PATH_VOICE_CLIPS,
+			outputPath:     PATH_SPLICED,
 		},
 	}
-}
-
-func loadSecrets(filename string) (Secrets, error) {
-	var secrets Secrets
-	file, err := os.Open(filename)
-	if err != nil {
-		return secrets, errors.Wrap(err, "could not open secrets file")
-	}
-	defer file.Close()
-	err = json.NewDecoder(file).Decode(&secrets)
-	if err != nil {
-		return secrets, errors.Wrap(err, "could not decode secrets file")
-	}
-
-	return secrets, nil
 }
 
 func (bot *Bot) Start(ctx context.Context) {

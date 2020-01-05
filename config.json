@@ -1,0 +1,25 @@
+{
+  "server": {
+    "port": "3000"
+  },
+  "subreddits": [
+    {
+      "name": "askreddit",
+      "count": 3,
+      "comments": {
+        "count": 5,
+        "sort": "top",
+        "includeTopSubComment": "true"
+      }
+    },
+    {
+      "name": "maliciouscompliance",
+      "count": 3,
+      "comments": {
+        "count": 0,
+        "sort": "top",
+        "includeTopSubComment": "true"
+      }
+    }
+  ]
+}
