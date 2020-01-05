@@ -37,10 +37,10 @@ func (s *ScreenshotGenerator) generate(data Data) {
 	serverData := data
 	serverData.Text = ""
 	for k, text := range data.Lines() {
-		serverData.Text += text
 		s.serverUpload <- serverData
 		s.params.Filename = fmt.Sprintf("--filename=%s/%d", s.path+data.ID, k)
 		sshot.GetShots([]string{s.serverAddr}, s.params)
+		serverData.Text += text
 	}
 	log.Printf("Finished generating screenshots for %s\n", data.ID)
 
