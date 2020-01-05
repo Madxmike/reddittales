@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/chromedp/chromedp"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 )
@@ -20,18 +23,17 @@ type ScreenshotGenerator struct {
 }
 
 func (s *ScreenshotGenerator) Start(ctx context.Context) {
-	chromeCtx, cancel := chromedp.NewContext(context.Background())
-	defer cancel()
 	for {
 		select {
 		case in := <-s.Input:
+			chromeCtx, cancel := chromedp.NewContext(context.Background())
 			log.Printf("Generating screenshots for %s", in.ID)
 			err := s.generateAll(chromeCtx, in, "#post")
 			if err != nil {
 				log.Println(err)
 			}
 			log.Printf("Finished generating screenshots for %s", in.ID)
-
+			cancel()
 			s.wg.Done()
 		case <-ctx.Done():
 			return
@@ -61,7 +63,6 @@ func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, select
 	serverData.Text = ""
 	for n, text := range lines {
 		serverData.Text += text
-		//Skip the first n here to account for the title being 0
 		err := s.generate(ctx, serverData, selector, fmt.Sprintf("%s/%d.png", dirName, n))
 		if err != nil {
 			return errors.Wrap(err, "could not generate screenshot")
@@ -80,9 +81,13 @@ func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, select
 }
 
 func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector string, filename string) error {
+	err := s.sendData(data)
+	if err != nil {
+		return errors.Wrap(err, "could not generate screenshot")
+	}
+
 	var b []byte
-	s.serverSend <- data
-	err := chromedp.Run(ctx, s.elementScreenshot(s.serverAddr, selector, &b))
+	err = chromedp.Run(ctx, s.elementScreenshot(s.serverAddr, selector, &b))
 	if err != nil {
 		return errors.Wrap(err, "could not take screenshot")
 	}
@@ -92,5 +97,17 @@ func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector 
 		return errors.Wrap(err, "could not save screenshot")
 	}
 
+	return nil
+}
+
+func (s *ScreenshotGenerator) sendData(data Data) error {
+	d, err := json.Marshal(data)
+	if err != nil {
+		return errors.Wrap(err, "could not marshal data")
+	}
+	_, err = http.Post(s.serverAddr+"/push", "application/json", bytes.NewBuffer(d))
+	if err != nil {
+		return errors.Wrap(err, "could not post data")
+	}
 	return nil
 }

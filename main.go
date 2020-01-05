@@ -33,9 +33,10 @@ func main() {
 		panic(err)
 	}
 
-	ctx := context.Background()
 	//TODO - Flags
 	bot := NewBot(config, secrets)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go bot.Start(ctx)
 
 	c := make(chan os.Signal, 1)

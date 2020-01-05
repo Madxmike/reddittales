@@ -21,7 +21,6 @@ func NewBot(config Config, secrets Secrets) Bot {
 	server := Server{
 		port:         config.Server.Port,
 		templatePath: "template.html",
-		Input:        make(chan Data),
 		data:         Data{},
 	}
 
@@ -46,7 +45,6 @@ func NewBot(config Config, secrets Secrets) Bot {
 			Input:      make(chan Data),
 			path:       PATH_SCREEN_SHOTS,
 			serverAddr: "http://127.0.0.1:" + server.port,
-			serverSend: server.Input,
 		},
 		splicer: Splicer{
 			Input:          make(chan Data),
