@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type Server struct {
@@ -53,6 +54,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (server *Server) executeTemplate(w io.Writer) error {
 	server.data.Text = stripmd.Strip(server.data.Text)
+	server.data.Text = strings.TrimPrefix(server.data.Text, server.data.Title)
 	err := server.temp.ExecuteTemplate(w, "index", server.data)
 	if err != nil {
 		return errors.Wrap(err, "could not execute template file")

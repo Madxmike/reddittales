@@ -53,6 +53,7 @@ func NewBot(config Config, secrets Secrets) Bot {
 			screenshotPath: PATH_SCREEN_SHOTS,
 			voiceClipPath:  PATH_VOICE_CLIPS,
 			outputPath:     PATH_SPLICED,
+			finishedPath:   config.FinishedFilePath,
 		},
 	}
 }

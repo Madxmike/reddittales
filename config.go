@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	Server     server      `json:"server"`
-	Subreddits []subreddit `json:"subreddits"`
+	FinishedFilePath string      `json:"finishedFilePath"`
+	Server           server      `json:"server"`
+	Subreddits       []subreddit `json:"subreddits"`
 }
 
 type server struct {

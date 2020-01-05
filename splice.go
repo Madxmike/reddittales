@@ -16,6 +16,7 @@ type Splicer struct {
 	screenshotPath string
 	voiceClipPath  string
 	outputPath     string
+	finishedPath   string
 }
 
 func (s *Splicer) Start(ctx context.Context) {
@@ -27,12 +28,20 @@ func (s *Splicer) Start(ctx context.Context) {
 				log.Println(err)
 				continue
 			}
-			finalFilename, err := s.stitchVideo(s.outputPath, s.reverseNames(processedFilenames))
+			finalFilename, err := s.stitchVideo(s.outputPath, s.reverseNames(processedFilenames), in.ID)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			log.Println(finalFilename)
+			err = s.moveFinishedFile(finalFilename)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			//err = s.cleanupAll(in)
+			//if err != nil {
+			//	log.Println(err)
+			//}
 		case <-ctx.Done():
 			return
 		}
@@ -57,7 +66,7 @@ func (s *Splicer) process(data Data) ([]string, error) {
 		return nil, errors.Wrap(err, "could not process data")
 	}
 
-	processed, err := s.stitchVideo(dirName, outputFilenames)
+	processed, err := s.stitchVideo(dirName, outputFilenames, "output")
 	if err != nil {
 		return nil, errors.Wrap(err, "could not stitch video")
 	}
@@ -65,7 +74,7 @@ func (s *Splicer) process(data Data) ([]string, error) {
 	return append(processedFilenames, processed), nil
 }
 
-func (s *Splicer) stitchVideo(dirName string, filenames []string) (string, error) {
+func (s *Splicer) stitchVideo(dirName string, filenames []string, outputFilename string) (string, error) {
 	var processedFilename string
 	b := make([]byte, 0)
 	for _, name := range filenames {
@@ -77,7 +86,7 @@ func (s *Splicer) stitchVideo(dirName string, filenames []string) (string, error
 	if err != nil {
 		return processedFilename, errors.Wrap(err, "could not write filenames file")
 	}
-	processedFilename = dirName + "output.mkv"
+	processedFilename = fmt.Sprintf("%s%s.mkv", dirName, outputFilename)
 	err = s.execute("-f", "concat", "-safe", "0", "-i", muxFilename, "-c", "copy", processedFilename)
 	if err != nil {
 		return processedFilename, errors.Wrap(err, "could not combine files")
@@ -108,6 +117,15 @@ func (s *Splicer) stitchAV(data Data) ([]string, error) {
 	return outputFilenames, nil
 }
 
+func (s *Splicer) moveFinishedFile(filename string) error {
+
+	err := os.Rename(s.outputPath+filename, s.finishedPath+filename)
+	if err != nil {
+		return errors.Wrap(err, "could not move file")
+	}
+	return nil
+}
+
 func (s *Splicer) executeStitch(screenshotFilename, voiceClipFilename, stitchFilename string) error {
 	err := s.execute("-loop", "1", "-framerate", "2", "-i", screenshotFilename, "-i", voiceClipFilename, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", "-vf", "scale=1920:-2", stitchFilename)
 	if err != nil {
@@ -117,7 +135,6 @@ func (s *Splicer) executeStitch(screenshotFilename, voiceClipFilename, stitchFil
 }
 
 func (s *Splicer) execute(args ...string) error {
-	log.Println("Executing: ffmpeg", args)
 	cmd := exec.Command("ffmpeg", args...)
 	cmd.Stdout = os.Stdout
 
@@ -154,10 +171,10 @@ func (s *Splicer) cleanupAll(data Data) error {
 	if err != nil {
 		return err
 	}
-	//err = s.cleanup(s.outputDir(data))
-	//if err != nil {
-	//	return err
-	//}
+	err = s.cleanup(s.outputDir(data))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -20,17 +20,19 @@ type ScreenshotGenerator struct {
 }
 
 func (s *ScreenshotGenerator) Start(ctx context.Context) {
-	ctx, _ = chromedp.NewContext(ctx)
+	chromeCtx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
 	for {
 		select {
 		case in := <-s.Input:
-			ctx, cancel := chromedp.NewContext(context.Background())
-			err := s.generate(ctx, in, "#post")
+			log.Printf("Generating screenshots for %s", in.ID)
+			err := s.generateAll(chromeCtx, in, "#post")
 			if err != nil {
 				log.Println(err)
 			}
+			log.Printf("Finished generating screenshots for %s", in.ID)
+
 			s.wg.Done()
-			cancel()
 		case <-ctx.Done():
 			return
 		}
@@ -46,7 +48,7 @@ func (s *ScreenshotGenerator) elementScreenshot(urlstr, sel string, res *[]byte)
 	}
 }
 
-func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector string) error {
+func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, selector string) error {
 	dirName := fmt.Sprintf("%s%s/", s.path, data.ID)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
@@ -54,31 +56,40 @@ func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector 
 	if data.Title != "" {
 		lines = append([]string{data.Title}, lines...)
 	}
+
 	serverData := data
 	serverData.Text = ""
 	for n, text := range lines {
 		serverData.Text += text
-		var b []byte
-		s.serverSend <- serverData
-		err := chromedp.Run(ctx, s.elementScreenshot(s.serverAddr, selector, &b))
+		//Skip the first n here to account for the title being 0
+		err := s.generate(ctx, serverData, selector, fmt.Sprintf("%s/%d.png", dirName, n))
 		if err != nil {
-			return errors.Wrap(err, "could not take screenshot")
+			return errors.Wrap(err, "could not generate screenshot")
 		}
-
-		filename := fmt.Sprintf("%s/%d.png", dirName, n)
-		err = ioutil.WriteFile(filename, b, 0777)
-		if err != nil {
-			return errors.Wrap(err, "could not save screenshot")
-		}
-
 	}
 
 	for _, comment := range data.Comments {
 		comment.ID = fmt.Sprintf("%s/%s", data.ID, comment.ID)
-		err := s.generate(ctx, comment, selector)
+		err := s.generateAll(ctx, comment, selector)
 		if err != nil {
 			return errors.Wrap(err, "could not generate comment")
 		}
+	}
+
+	return nil
+}
+
+func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector string, filename string) error {
+	var b []byte
+	s.serverSend <- data
+	err := chromedp.Run(ctx, s.elementScreenshot(s.serverAddr, selector, &b))
+	if err != nil {
+		return errors.Wrap(err, "could not take screenshot")
+	}
+
+	err = ioutil.WriteFile(filename, b, 0777)
+	if err != nil {
+		return errors.Wrap(err, "could not save screenshot")
 	}
 
 	return nil
