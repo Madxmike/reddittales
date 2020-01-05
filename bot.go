@@ -39,7 +39,7 @@ func NewBot(config Config, secrets Secrets) Bot {
 			wg:     &wg,
 			Client: http.DefaultClient,
 			Input:  make(chan Data),
-			Path:   PATH_VOICE_CLIPS,
+			path:   PATH_VOICE_CLIPS,
 		},
 		screenshotGen: ScreenshotGenerator{
 			wg:         &wg,

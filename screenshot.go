@@ -51,11 +51,15 @@ func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector 
 	dirName := fmt.Sprintf("%s%s/", s.path, data.ID)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
+	lines := data.Lines()
+	if data.Title != "" {
+		lines = append([]string{data.Title}, lines...)
+	}
 	serverData := data
 	serverData.Text = ""
-	for n, text := range data.Lines() {
-		var b []byte
+	for n, text := range lines {
 		serverData.Text += text
+		var b []byte
 		s.serverSend <- serverData
 		err := chromedp.Run(ctx, s.elementScreenshot(s.serverAddr, selector, &b))
 		if err != nil {
@@ -67,12 +71,15 @@ func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector 
 		if err != nil {
 			return errors.Wrap(err, "could not save screenshot")
 		}
+
 	}
 
 	for _, comment := range data.Comments {
 		comment.ID = fmt.Sprintf("%s/%s", data.ID, comment.ID)
 		err := s.generate(ctx, comment, selector)
-		log.Println(err)
+		if err != nil {
+			return errors.Wrap(err, "could not generate comment")
+		}
 	}
 
 	return nil

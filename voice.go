@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	texttospeechpb "google.golang.org/genproto/googleapis/cloud/texttospeech/v1"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -16,7 +17,7 @@ type VoiceGenerator struct {
 	wg     *sync.WaitGroup
 	Client *http.Client
 	Input  chan Data
-	Path   string
+	path   string
 }
 
 func (v *VoiceGenerator) Start(ctx context.Context) {
@@ -35,18 +36,32 @@ func (v *VoiceGenerator) Start(ctx context.Context) {
 }
 
 func (v *VoiceGenerator) generate(data Data) error {
-	log.Printf("Generating voice clips for %s\n", data.ID)
+	ctx := context.Background()
+	client, err := texttospeech.NewClient(ctx)
+	if err != nil {
+		return errors.Wrap(err, "could not start tts client")
+	}
+
+	dirName := fmt.Sprintf("%s%s/", v.path, data.ID)
+	_ = os.Mkdir(dirName, os.ModeDir)
+
 	lines := data.Lines()
-	v.createDir(data)
-	for k, text := range lines {
-		b, err := v.processRequest(text)
+	if data.Title != "" {
+		lines = append([]string{data.Title}, lines...)
+	}
+
+	serverData := data
+	serverData.Text = ""
+	for n, text := range lines {
+		b, err := v.processRequest(client, text)
 		if err != nil {
 			return errors.Wrap(err, "could not generate voice clips")
 		}
-		fileName := fmt.Sprintf("%s%s/%d.mp3", v.Path, data.ID, k)
-		err = v.saveFile(fileName, b)
+
+		filename := fmt.Sprintf("%s/%d.mp3", dirName, n)
+		err = ioutil.WriteFile(filename, b, 0777)
 		if err != nil {
-			return errors.Wrap(err, "could not save voice clips files")
+			return errors.Wrap(err, "could not save voice clip")
 		}
 	}
 
@@ -54,51 +69,11 @@ func (v *VoiceGenerator) generate(data Data) error {
 		comment.ID = fmt.Sprintf("%s/%d", data.ID, k)
 		_ = v.generate(comment)
 	}
-	_ = v.generateTitle(data)
-	log.Printf("Finshed Generating voice clips for %s\n", data.ID)
 	return nil
 }
 
-func (v *VoiceGenerator) generateTitle(data Data) error {
-	if data.Title == "" {
-		return nil
-	}
-	b, err := v.processRequest(data.Title)
-	if err != nil {
-		return errors.Wrap(err, "could not generate title voice clip")
-	}
-	fileName := fmt.Sprintf("%s%s/title.mp3", v.Path, data.ID)
-	err = v.saveFile(fileName, b)
-	if err != nil {
-		return errors.Wrap(err, "could not save title voice clip")
-	}
-
-	return nil
-}
-
-func (v *VoiceGenerator) createDir(data Data) {
-	_ = os.Mkdir(v.Path+data.ID, os.ModeDir)
-}
-
-func (v *VoiceGenerator) saveFile(fileName string, b []byte) error {
-	file, err := os.Create(fileName)
-	if err != nil {
-		return errors.Wrapf(err, "could not create %s", fileName)
-	}
-	defer file.Close()
-	_, err = file.Write(b)
-	if err != nil {
-		return errors.Wrapf(err, "could not write %s", fileName)
-	}
-	return nil
-}
-
-func (v *VoiceGenerator) processRequest(text string) ([]byte, error) {
+func (v *VoiceGenerator) processRequest(client *texttospeech.Client, text string) ([]byte, error) {
 	ctx := context.Background()
-	client, err := texttospeech.NewClient(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not start tts client")
-	}
 
 	req := texttospeechpb.SynthesizeSpeechRequest{
 		Input: &texttospeechpb.SynthesisInput{
