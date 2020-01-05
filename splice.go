@@ -87,7 +87,7 @@ func (s *Splicer) stitchVideo(dirName string, filenames []string, outputFilename
 		return processedFilename, errors.Wrap(err, "could not write filenames file")
 	}
 	processedFilename = fmt.Sprintf("%s%s.mkv", dirName, outputFilename)
-	err = s.execute("-f", "concat", "-safe", "0", "-i", muxFilename, "-c", "copy", processedFilename)
+	err = s.execute("-y", "-f", "concat", "-safe", "0", "-i", muxFilename, "-c", "copy", processedFilename)
 	if err != nil {
 		return processedFilename, errors.Wrap(err, "could not combine files")
 	}
@@ -127,7 +127,7 @@ func (s *Splicer) moveFinishedFile(filename string) error {
 }
 
 func (s *Splicer) executeStitch(screenshotFilename, voiceClipFilename, stitchFilename string) error {
-	err := s.execute("-loop", "1", "-framerate", "2", "-i", screenshotFilename, "-i", voiceClipFilename, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", "-vf", "scale=1920:-2", stitchFilename)
+	err := s.execute("-y", "-loop", "1", "-framerate", "2", "-i", screenshotFilename, "-i", voiceClipFilename, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", "-vf", "scale=1920:-2", stitchFilename)
 	if err != nil {
 		return errors.Wrap(err, "could not splice files")
 	}
@@ -140,6 +140,7 @@ func (s *Splicer) execute(args ...string) error {
 
 	err := cmd.Run()
 	if err != nil {
+		log.Println(args)
 		return errors.Wrap(err, "could not execute ffmpeg")
 	}
 
