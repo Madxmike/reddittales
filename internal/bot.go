@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type Bot struct {
 	splicer       Splicer
 }
 
-func NewBot() Bot {
+func NewBot(voicePath, screenshotPath, splicePath string) Bot {
 	server := Server{
 		port:         "3000",
 		templatePath: "template.html",
@@ -56,17 +56,17 @@ func NewBot() Bot {
 			wg:     &wg,
 			Client: http.DefaultClient,
 			Input:  make(chan Data),
-			Path:   PATH_VOICE_CLIPS,
+			Path:   voicePath,
 		},
 		screenshotGen: ScreenshotGenerator{
 			wg:    &wg,
 			Input: make(chan Data),
-			path:  PATH_SCREEN_SHOTS,
+			path:  screenshotPath,
 			params: sshot.Parameters{
 				Command: "pageres",
-				Sizes:   "1024x1080",
+				Sizes:   "1920x1080",
 				Crop:    "--crop",
-				Scale:   "--scale 0.9",
+				Scale:   "--scale 0.75",
 				Timeout: "--timeout 30",
 			},
 			serverAddr:   "http://127.0.0.1:" + server.port,
@@ -74,9 +74,9 @@ func NewBot() Bot {
 		},
 		splicer: Splicer{
 			Input:          make(chan Data),
-			screenshotPath: PATH_SCREEN_SHOTS,
-			voiceClipPath:  PATH_VOICE_CLIPS,
-			outputPath:     PATH_SPLICED,
+			screenshotPath: screenshotPath,
+			voiceClipPath:  voicePath,
+			outputPath:     splicePath,
 		},
 	}
 }

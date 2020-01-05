@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -7,6 +7,14 @@ import (
 	"log"
 	"time"
 )
+
+type Secrets struct {
+	UserAgent    string `json:"user_agent"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+}
 
 type RedditGenerator struct {
 	reddit            *geddit.OAuthSession
