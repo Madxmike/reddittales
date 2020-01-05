@@ -50,7 +50,7 @@ func NewBot(config Config, secrets Secrets) Bot {
 				Command: "pageres",
 				Sizes:   "1920x1080",
 				Crop:    "--crop",
-				Scale:   "--scale 0.75",
+				Scale:   "--scale 1.0",
 				Timeout: "--timeout 30",
 			},
 			serverAddr:   "http://127.0.0.1:" + server.port,

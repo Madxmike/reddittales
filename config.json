@@ -3,20 +3,12 @@
     "port": "3000"
   },
   "subreddits": [
+
     {
       "name": "askreddit",
-      "count": 3,
+      "count": 1,
       "comments": {
-        "count": 5,
-        "sort": "top",
-        "includeTopSubComment": "true"
-      }
-    },
-    {
-      "name": "maliciouscompliance",
-      "count": 3,
-      "comments": {
-        "count": 0,
+        "count": 20,
         "sort": "top",
         "includeTopSubComment": "true"
       }
