@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/pkg/errors"
-	stripmd "github.com/writeas/go-strip-markdown"
 	"html/template"
 	"io"
 	"log"
@@ -56,7 +55,6 @@ func (server *Server) postData(w http.ResponseWriter, r *http.Request) {
 
 func (server *Server) executeTemplate(w io.Writer) error {
 	data := server.data
-	data.Text = stripmd.Strip(data.Text)
 	data.Text = strings.TrimPrefix(data.Text, data.Title)
 	err := server.temp.ExecuteTemplate(w, "index", data)
 	if err != nil {

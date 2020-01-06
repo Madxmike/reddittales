@@ -5,10 +5,10 @@
   },
   "subreddits": [
     {
-      "name": "maliciouscompliance",
-      "count": 3,
+      "name": "askreddit",
+      "count": 1,
       "comments": {
-        "count": 5,
+        "count": 50,
         "sort": "top",
         "includeTopSubComment": "true"
       }

@@ -26,14 +26,12 @@ func (s *ScreenshotGenerator) Start(ctx context.Context) {
 	for {
 		select {
 		case in := <-s.Input:
-			chromeCtx, cancel := chromedp.NewContext(context.Background())
 			log.Printf("Generating screenshots for %s", in.ID)
-			err := s.generateAll(chromeCtx, in, "#post")
+			err := s.generateAll(ctx, in, "#post")
 			if err != nil {
 				log.Println(err)
 			}
 			log.Printf("Finished generating screenshots for %s", in.ID)
-			cancel()
 			s.wg.Done()
 		case <-ctx.Done():
 			return
@@ -43,14 +41,15 @@ func (s *ScreenshotGenerator) Start(ctx context.Context) {
 
 func (s *ScreenshotGenerator) elementScreenshot(urlstr, sel string, res *[]byte) chromedp.Tasks {
 	return chromedp.Tasks{
-		chromedp.EmulateViewport(1920, 1080),
+		chromedp.EmulateViewport(3840, 4320),
 		chromedp.Navigate(urlstr),
-		chromedp.WaitVisible(sel, chromedp.ByID),
-		chromedp.Screenshot(sel, res, chromedp.NodeVisible, chromedp.ByID),
+		chromedp.ScrollIntoView("#post", chromedp.NodeVisible, chromedp.ByQuery),
+		chromedp.Screenshot(sel, res, chromedp.NodeVisible, chromedp.ByQuery),
 	}
 }
 
 func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, selector string) error {
+
 	dirName := fmt.Sprintf("%s%s/", s.path, data.ID)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
@@ -81,13 +80,15 @@ func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, select
 }
 
 func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector string, filename string) error {
+	//TODO - attach to a chromium headless image instead
+	chromeCtx, cancel := chromedp.NewContext(ctx)
+	defer cancel()
 	err := s.sendData(data)
 	if err != nil {
 		return errors.Wrap(err, "could not generate screenshot")
 	}
-
 	var b []byte
-	err = chromedp.Run(ctx, s.elementScreenshot(s.serverAddr, selector, &b))
+	err = chromedp.Run(chromeCtx, s.elementScreenshot(s.serverAddr, selector, &b))
 	if err != nil {
 		return errors.Wrap(err, "could not take screenshot")
 	}

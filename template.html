@@ -8,26 +8,31 @@
         <title>Document</title>
     </head>
         <style>
-         body {
+         #post {
              width: 100%;
              height: 100%;
              background-color: 	#333333;
              color: white;
              font-family: verdana, arial, helvetica, sans-serif;
              padding: 1%;
-             font-size: 20px;
+             font-size: calc(16px + 1vw);
          }
 
-        body:link {
+         #post:link {
             color: white;
             text-underline: none;
         }
 
-        body * {
+         #post * {
+            display: block;
             margin: 0;
         }
 
+        #author {
+        }
         #text {
+            max-width: 100vw;
+            max-height: 100vw;
             display: inline-block;
             white-space: pre-wrap;
             border-color: gray;
@@ -41,11 +46,15 @@
             margin-top: 1%
         }
     </style>
-    <body id="post">
-        <h4>{{.Title}}</h4>
-        <sub>submitted by {{.Username}}</sub>
-        <div id="text">{{.Text}}</div>
-        <div id="faux_buttons">Share Report Save </div>
+    <body>
+        <div id="post">
+            <h4>{{.Title}}</h4>
+            <sub id="author">submitted by {{.Username}}</sub>
+            <div id="text">{{.Text}}</div>
+            <div id="faux_buttons">Share Report Save </div>
+        </div>
+        <div id="#footer"></div>
+
     </body>
     </html>
 {{end}}

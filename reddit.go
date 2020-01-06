@@ -4,7 +4,9 @@ import (
 	"context"
 	"github.com/jzelinskie/geddit"
 	"github.com/pkg/errors"
+	stripmd "github.com/writeas/go-strip-markdown"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -66,22 +68,44 @@ func (r *RedditGenerator) poll() {
 }
 
 func (r *RedditGenerator) processSubmission(sub subreddit, submission *geddit.Submission) error {
+	log.Printf("Processing submission %s", submission.ID)
 	submissionData := r.submissionToData(submission)
 
-	if sub.Comments.Count > 0 {
-		options := geddit.ListingOptions{
-			Count: sub.Comments.Count,
-			Limit: sub.Comments.Count,
-		}
+	options := geddit.ListingOptions{
+		Limit: sub.Comments.Count,
+		Count: sub.Comments.Count,
+	}
+	commentData := make([]Data, 0, sub.Comments.Count)
 
+	for len(commentData) < sub.Comments.Count {
+		log.Println("Retrieving Comments")
 		comments, err := r.reddit.Comments(submission, geddit.PopularitySort(sub.Comments.Sort), options)
 		if err != nil {
 			return errors.Wrap(err, "could not retrieve comments")
 		}
-		submissionData.Comments = r.commentToData(comments)
+		//We are out of comments
+		if len(comments) == 0 {
+			break
+		}
+
+		lastComment := comments[len(comments)-1]
+		options.After = lastComment.FullID
+		options.Count = sub.Comments.Count - len(commentData)
+		commentData = append(commentData, r.commentToData(comments)...)
+		log.Printf("%d / %d comments collected", len(commentData), sub.Comments.Count)
 	}
+
+	log.Printf("%d comments collected", len(commentData))
+	submissionData.Comments = commentData
 	r.Output <- submissionData
 	return nil
+}
+
+func (r *RedditGenerator) sanitizeText(text string) string {
+	text = stripmd.Strip(text)
+	text = strings.ReplaceAll(text, "&gt;", "")
+
+	return text
 }
 
 func (r *RedditGenerator) submissionToData(submission *geddit.Submission) Data {
@@ -90,7 +114,7 @@ func (r *RedditGenerator) submissionToData(submission *geddit.Submission) Data {
 		Username: submission.Author,
 		Score:    submission.Score,
 		Title:    submission.Title,
-		Text:     submission.Selftext,
+		Text:     r.sanitizeText(submission.Selftext),
 		Comments: make([]Data, 0),
 	}
 }
@@ -103,7 +127,7 @@ func (r *RedditGenerator) commentToData(comments []*geddit.Comment) []Data {
 			Username: comment.Author,
 			Score:    int(comment.Score),
 			Title:    "",
-			Text:     comment.Body,
+			Text:     r.sanitizeText(comment.Body),
 			Comments: make([]Data, 0),
 		})
 	}
