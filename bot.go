@@ -11,7 +11,7 @@ import (
 type Bot struct {
 	wg            *sync.WaitGroup
 	server        Server
-	redditGen     RedditGenerator
+	reddit        *RedditGenerator
 	voiceGen      VoiceGenerator
 	screenshotGen ScreenshotGenerator
 	splicer       Splicer
@@ -23,16 +23,16 @@ func NewBot(config Config, secrets Secrets) Bot {
 		data:   Data{},
 	}
 
-	redditGen, err := NewRedditGenerator(secrets, 5*time.Second, config.Subreddits)
+	reddit, err := NewRedditGenerator(secrets, config.Reddit, 5*time.Second)
 	if err != nil {
 		panic(err)
 	}
 
 	var wg sync.WaitGroup
 	return Bot{
-		wg:        &wg,
-		server:    server,
-		redditGen: *redditGen,
+		wg:     &wg,
+		server: server,
+		reddit: reddit,
 		voiceGen: VoiceGenerator{
 			wg:     &wg,
 			Client: http.DefaultClient,
@@ -59,12 +59,12 @@ func (bot *Bot) Start(ctx context.Context) {
 	go bot.server.Start(ctx)
 	go bot.voiceGen.Start(ctx)
 	go bot.screenshotGen.Start(ctx)
-	go bot.redditGen.Start(ctx)
+	go bot.reddit.Start(ctx)
 	go bot.splicer.Start(ctx)
 
 	for {
 		select {
-		case data := <-bot.redditGen.Output:
+		case data := <-bot.reddit.Output:
 			bot.Process(data)
 		case <-ctx.Done():
 			return
