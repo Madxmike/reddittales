@@ -7,25 +7,36 @@ import (
 )
 
 type Config struct {
-	FinishedFilePath string      `json:"finishedFilePath"`
-	Server           server      `json:"server"`
-	Subreddits       []subreddit `json:"subreddits"`
+	Server serverConfig `json:"server"`
+	Reddit redditConfig `json:"reddit"`
+	Voice  voiceConfig  `json:"voice"`
+	Stitch stitchConfig `json:"stitch"`
 }
 
-type server struct {
-	Port string `json:"port"`
+type serverConfig struct {
+	Port            string `json:"port"`
+	RefreshTemplate bool   `json:"refreshTemplate"`
+	SanitizeText    bool   `json:"sanitizeTexT"`
 }
 
-type comments struct {
-	Count                int    `json:"count"`
-	Sort                 string `json:"sort"`
-	IncludeTopSubComment string `json:"includeTopSubComment"`
+type redditConfig struct {
+	Watched []subredditConfig `json:"watched"`
 }
 
-type subreddit struct {
-	Name     string   `json:"name"`
-	Count    int      `json:"count"`
-	Comments comments `json:"comments"`
+type subredditConfig struct {
+	Name            string `json:"name"`
+	NumPosts        int    `json:"numPosts"`
+	SortPostsBy     string `json:"sortPostsBy"`
+	MaximumPostTime string `json:"maximumPostTime"`
+	NumComments     int    `json:"numComments"`
+	SortCommentsBy  string `json:"sortCommentsBy"`
+}
+
+type voiceConfig struct {
+}
+
+type stitchConfig struct {
+	FinishedFilePath string `json:"finishedFilePath"`
 }
 
 type Secrets struct {

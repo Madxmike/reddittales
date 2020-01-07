@@ -1,17 +1,25 @@
 {
-  "finishedFilePath": "C:\\Users\\Michael\\Desktop\\Tales\\Videos\\",
   "server": {
-    "port": "3000"
+    "port": "3000",
+    "refreshTemplate": false,
+    "sanitizeText": true
   },
-  "subreddits": [
-    {
-      "name": "askreddit",
-      "count": 1,
-      "comments": {
-        "count": 50,
-        "sort": "top",
-        "includeTopSubComment": "true"
+  "reddit": {
+    "watched": [
+      {
+        "name": "askreddit",
+        "numPosts": 1,
+        "sortPostsBy": "top",
+        "maximumPostTime": "day",
+        "numComments": 50,
+        "sortCommentsBy": "top"
       }
-    }
-  ]
+    ]
+  },
+  "voice": {
+
+  },
+  "stitch": {
+    "finishedFilePath": "C:\\Users\\Michael\\Desktop\\Tales\\Videos\\"
+  }
 }
