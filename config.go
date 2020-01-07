@@ -16,11 +16,11 @@ type Config struct {
 type serverConfig struct {
 	Port            string `json:"port"`
 	RefreshTemplate bool   `json:"refreshTemplate"`
-	SanitizeText    bool   `json:"sanitizeTexT"`
 }
 
 type redditConfig struct {
-	Watched []subredditConfig `json:"watched"`
+	SanitizeText bool              `json:"sanitizeTexT"`
+	Watched      []subredditConfig `json:"watched"`
 }
 
 type subredditConfig struct {

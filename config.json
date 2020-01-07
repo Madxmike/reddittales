@@ -2,9 +2,9 @@
   "server": {
     "port": "3000",
     "refreshTemplate": false,
-    "sanitizeText": true
   },
   "reddit": {
+    "sanitizeText": true,
     "watched": [
       {
         "name": "askreddit",

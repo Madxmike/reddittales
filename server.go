@@ -11,36 +11,39 @@ import (
 	"strings"
 )
 
+const (
+	TemplateFileName = "template.html"
+)
+
 type Server struct {
-	port         string
-	templatePath string
-	data         Data
-	temp         *template.Template
+	config         serverConfig
+	data           Data
+	renderTemplate *template.Template
 }
 
-func (server *Server) Start(ctx context.Context) {
-	t, err := template.ParseGlob(server.templatePath)
+func (s *Server) Start(ctx context.Context) {
+	t, err := template.ParseGlob(TemplateFileName)
 	if err != nil {
 		panic(err)
 	}
-	server.temp = t
-	http.HandleFunc("/push", server.postData)
-	http.Handle("/", server)
-	err = http.ListenAndServe(":"+server.port, nil)
+	s.renderTemplate = t
+	http.Handle("/", s)
+	http.HandleFunc("/push", s.postData)
+	err = http.ListenAndServe(":"+s.config.Port, nil)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := server.executeTemplate(w)
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := s.executeTemplate(w)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
-func (server *Server) postData(w http.ResponseWriter, r *http.Request) {
+func (s *Server) postData(w http.ResponseWriter, r *http.Request) {
 	var data Data
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
@@ -49,14 +52,21 @@ func (server *Server) postData(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	server.data = data
+	s.data = data
 	w.WriteHeader(http.StatusOK)
 }
 
-func (server *Server) executeTemplate(w io.Writer) error {
-	data := server.data
+func (s *Server) executeTemplate(w io.Writer) error {
+	if s.config.RefreshTemplate {
+		t, err := s.renderTemplate.ParseGlob(TemplateFileName)
+		if err != nil {
+			return errors.Wrap(err, "could not refresh template")
+		}
+		s.renderTemplate = t
+	}
+	data := s.data
 	data.Text = strings.TrimPrefix(data.Text, data.Title)
-	err := server.temp.ExecuteTemplate(w, "index", data)
+	err := s.renderTemplate.ExecuteTemplate(w, "index", data)
 	if err != nil {
 		return errors.Wrap(err, "could not execute template file")
 	}

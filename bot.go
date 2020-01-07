@@ -19,9 +19,8 @@ type Bot struct {
 
 func NewBot(config Config, secrets Secrets) Bot {
 	server := Server{
-		port:         config.Server.Port,
-		templatePath: "template.html",
-		data:         Data{},
+		config: config.Server,
+		data:   Data{},
 	}
 
 	redditGen, err := NewRedditGenerator(secrets, 5*time.Second, config.Subreddits)
