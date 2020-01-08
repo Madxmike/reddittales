@@ -53,7 +53,7 @@ func (r *RedditGenerator) poll() {
 			Limit: subConfig.NumPosts,
 			Count: subConfig.NumPosts,
 		}
-		posts, err := r.reddit.SubredditSubmissions(subConfig.Name, geddit.TopSubmissions, options)
+		posts, err := r.reddit.SubredditSubmissions(subConfig.Name, geddit.PopularitySort(subConfig.SortPostsBy), options)
 		if err != nil {
 			log.Println(errors.Wrapf(err, "could not get posts for %s", subConfig.Name))
 			continue
@@ -79,7 +79,7 @@ func (r *RedditGenerator) processSubmission(subConfig subredditConfig, submissio
 
 	for len(commentData) < subConfig.NumComments {
 		log.Println("Retrieving Comments")
-		comments, err := r.reddit.Comments(submission, geddit.PopularitySort(sub.Comments.Sort), options)
+		comments, err := r.reddit.Comments(submission, geddit.PopularitySort(subConfig.SortCommentsBy), options)
 		if err != nil {
 			return errors.Wrap(err, "could not retrieve comments")
 		}
@@ -98,12 +98,6 @@ func (r *RedditGenerator) processSubmission(subConfig subredditConfig, submissio
 
 	log.Printf("%d comments collected", len(commentData))
 
-	if r.config.SanitizeText {
-		submissionData.Text = r.sanitizeText(submissionData.Text)
-		for _, c := range commentData {
-			c.Text = r.sanitizeText(c.Text)
-		}
-	}
 	submissionData.Comments = commentData
 	r.Output <- submissionData
 	return nil
@@ -117,12 +111,16 @@ func (r *RedditGenerator) sanitizeText(text string) string {
 }
 
 func (r *RedditGenerator) submissionToData(submission *geddit.Submission) Data {
+	text := submission.Selftext
+	if r.config.SanitizeText {
+		text = r.sanitizeText(text)
+	}
 	return Data{
 		ID:       submission.ID,
 		Username: submission.Author,
 		Score:    submission.Score,
 		Title:    submission.Title,
-		Text:     submission.Selftext,
+		Text:     text,
 		Comments: make([]Data, 0),
 	}
 }
@@ -130,12 +128,16 @@ func (r *RedditGenerator) submissionToData(submission *geddit.Submission) Data {
 func (r *RedditGenerator) commentToData(comments []*geddit.Comment) []Data {
 	commentData := make([]Data, 0, len(comments))
 	for _, comment := range comments {
+		text := comment.Body
+		if r.config.SanitizeText {
+			text = r.sanitizeText(text)
+		}
 		commentData = append(commentData, Data{
 			ID:       comment.FullID,
 			Username: comment.Author,
 			Score:    int(comment.Score),
 			Title:    "",
-			Text:     comment.Body,
+			Text:     text,
 			Comments: make([]Data, 0),
 		})
 	}

@@ -19,7 +19,7 @@ type serverConfig struct {
 }
 
 type redditConfig struct {
-	SanitizeText bool              `json:"sanitizeTexT"`
+	SanitizeText bool              `json:"sanitizeText"`
 	Watched      []subredditConfig `json:"watched"`
 }
 

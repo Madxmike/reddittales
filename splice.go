@@ -127,7 +127,7 @@ func (s *Splicer) moveFinishedFile(filename string) error {
 }
 
 func (s *Splicer) executeStitch(screenshotFilename, voiceClipFilename, stitchFilename string) error {
-	err := s.execute("-y", "-loop", "1", "-framerate", "2", "-i", screenshotFilename, "-i", voiceClipFilename, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", "-vf", "scale=1920:-2", stitchFilename)
+	err := s.execute("-y", "-loop", "1", "-framerate", "2", "-i", screenshotFilename, "-i", voiceClipFilename, "-c:v", "libx264", "-preset", "medium", "-tune", "stillimage", "-crf", "18", "-c:a", "copy", "-shortest", "-pix_fmt", "yuv420p", "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:#333333", stitchFilename)
 	if err != nil {
 		return errors.Wrap(err, "could not splice files")
 	}

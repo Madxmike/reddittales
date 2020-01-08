@@ -1,17 +1,17 @@
 {
   "server": {
     "port": "3000",
-    "refreshTemplate": false,
+    "refreshTemplate": false
   },
   "reddit": {
     "sanitizeText": true,
     "watched": [
       {
-        "name": "askreddit",
+        "name": "amitheasshole",
         "numPosts": 1,
         "sortPostsBy": "top",
         "maximumPostTime": "day",
-        "numComments": 50,
+        "numComments": 3,
         "sortCommentsBy": "top"
       }
     ]
