@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/jzelinskie/geddit"
+	"fmt"
 	"github.com/pkg/errors"
+	"github.com/turnage/graw/reddit"
 	stripmd "github.com/writeas/go-strip-markdown"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -13,25 +15,30 @@ import (
 type RedditGenerator struct {
 	Output     chan Data
 	config     redditConfig
-	reddit     *geddit.OAuthSession
 	pollTicker *time.Ticker
+	reddit     reddit.Bot
 }
 
 func NewRedditGenerator(secrets Secrets, config redditConfig, pollInterval time.Duration) (*RedditGenerator, error) {
-	OAuth, err := geddit.NewOAuthSession(secrets.ClientID, secrets.ClientSecret, secrets.UserAgent, "")
-	if err != nil {
-		return nil, errors.Wrap(err, "could not establish reddit connection")
+	grawCfg := reddit.BotConfig{
+		Agent: secrets.UserAgent,
+		App: reddit.App{
+			ID:       secrets.ClientID,
+			Secret:   secrets.ClientSecret,
+			Username: secrets.Username,
+			Password: secrets.Password,
+		},
 	}
-	err = OAuth.LoginAuth(secrets.Username, secrets.Password)
+	bot, err := reddit.NewBot(grawCfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not login to reddit")
+		return nil, errors.Wrap(err, "could not start reddit bot")
 	}
 
 	return &RedditGenerator{
 		Output:     make(chan Data),
 		config:     config,
-		reddit:     OAuth,
 		pollTicker: time.NewTicker(pollInterval),
+		reddit:     bot,
 	}, nil
 }
 
@@ -48,59 +55,56 @@ func (r *RedditGenerator) Start(ctx context.Context) {
 
 func (r *RedditGenerator) poll() {
 	for _, subConfig := range r.config.Watched {
-		options := geddit.ListingOptions{
-			Time:  geddit.ThisDay,
-			Limit: subConfig.NumPosts,
-			Count: subConfig.NumPosts,
+		listingParams := map[string]string{
+			"limit": strconv.Itoa(subConfig.NumPosts),
+			"sort":  subConfig.SortPostsBy,
+			"time":  subConfig.MaximumPostTime,
 		}
-		posts, err := r.reddit.SubredditSubmissions(subConfig.Name, geddit.PopularitySort(subConfig.SortPostsBy), options)
+		harvest, err := r.reddit.ListingWithParams(fmt.Sprintf("/r/%s", subConfig.Name), listingParams)
 		if err != nil {
-			log.Println(errors.Wrapf(err, "could not get posts for %s", subConfig.Name))
+			log.Printf("could not retrieve posts for %s: %e", subConfig.Name, err)
 			continue
 		}
-		for _, post := range posts {
-			err = r.processSubmission(subConfig, post)
+		for _, post := range harvest.Posts {
+			err = r.processPost(subConfig, post)
 			if err != nil {
-				log.Println(errors.Wrapf(err, "could not process post %s", post.ID))
+				log.Printf("could not process post for %s: %e", subConfig.Name, err)
+				continue
+
 			}
 		}
 	}
 }
 
-func (r *RedditGenerator) processSubmission(subConfig subredditConfig, submission *geddit.Submission) error {
-	log.Printf("Processing submission %s", submission.ID)
-	submissionData := r.submissionToData(submission)
+func (r *RedditGenerator) processPost(subConfig subredditConfig, post *reddit.Post) error {
 
-	options := geddit.ListingOptions{
-		Limit: subConfig.NumComments,
-		Count: subConfig.NumComments,
-	}
-	commentData := make([]Data, 0, subConfig.NumComments)
-
-	for len(commentData) < subConfig.NumComments {
-		log.Println("Retrieving Comments")
-		comments, err := r.reddit.Comments(submission, geddit.PopularitySort(subConfig.SortCommentsBy), options)
-		if err != nil {
-			return errors.Wrap(err, "could not retrieve comments")
-		}
-		//We are out of comments
-		if len(comments) == 0 {
-			break
-		}
-		lastComment := comments[len(comments)-1]
-		options.After = lastComment.FullID
-		remaining := subConfig.NumComments - len(commentData)
-		options.Limit = remaining
-		options.Count = remaining
-		commentData = append(commentData, r.commentToData(comments)...)
-		log.Printf("%d / %d comments collected", len(commentData), subConfig.NumComments)
+	post, err := r.reddit.Thread(post.Permalink)
+	if err != nil {
+		return errors.Wrap(err, "could not get full post thread")
 	}
 
-	log.Printf("%d comments collected", len(commentData))
+	topLevels := r.filterTopLevel(post.Replies)
+	capturedComments := make([]*reddit.Comment, 0, subConfig.NumComments)
+	if len(topLevels) < cap(capturedComments) {
+		capturedComments = append(capturedComments, topLevels...)
+	} else {
+		capturedComments = append(capturedComments, topLevels[:cap(capturedComments)]...)
+	}
 
-	submissionData.Comments = commentData
-	r.Output <- submissionData
+	postData := r.postToData(post)
+	postData.Comments = r.commentToData(capturedComments)
+	r.Output <- postData
 	return nil
+}
+
+func (r *RedditGenerator) filterTopLevel(comments []*reddit.Comment) []*reddit.Comment {
+	topLevels := make([]*reddit.Comment, 0)
+	for _, comment := range comments {
+		if comment.IsTopLevel() {
+			topLevels = append(topLevels, comment)
+		}
+	}
+	return topLevels
 }
 
 func (r *RedditGenerator) sanitizeText(text string) string {
@@ -110,22 +114,22 @@ func (r *RedditGenerator) sanitizeText(text string) string {
 	return text
 }
 
-func (r *RedditGenerator) submissionToData(submission *geddit.Submission) Data {
-	text := submission.Selftext
+func (r *RedditGenerator) postToData(post *reddit.Post) Data {
+	text := post.SelfText
 	if r.config.SanitizeText {
 		text = r.sanitizeText(text)
 	}
 	return Data{
-		ID:       submission.ID,
-		Username: submission.Author,
-		Score:    submission.Score,
-		Title:    submission.Title,
+		ID:       post.ID,
+		Username: post.Author,
+		Score:    int(post.Ups),
+		Title:    post.Title,
 		Text:     text,
 		Comments: make([]Data, 0),
 	}
 }
 
-func (r *RedditGenerator) commentToData(comments []*geddit.Comment) []Data {
+func (r *RedditGenerator) commentToData(comments []*reddit.Comment) []Data {
 	commentData := make([]Data, 0, len(comments))
 	for _, comment := range comments {
 		text := comment.Body
@@ -133,9 +137,9 @@ func (r *RedditGenerator) commentToData(comments []*geddit.Comment) []Data {
 			text = r.sanitizeText(text)
 		}
 		commentData = append(commentData, Data{
-			ID:       comment.FullID,
+			ID:       comment.ID,
 			Username: comment.Author,
-			Score:    int(comment.Score),
+			Score:    int(comment.Ups),
 			Title:    "",
 			Text:     text,
 			Comments: make([]Data, 0),
