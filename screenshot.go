@@ -19,7 +19,6 @@ type ScreenshotGenerator struct {
 	Input      chan Data
 	path       string
 	serverAddr string
-	serverSend chan<- Data
 }
 
 func (s *ScreenshotGenerator) Start(ctx context.Context) {

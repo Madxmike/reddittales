@@ -14,6 +14,7 @@ import (
 )
 
 type VoiceGenerator struct {
+	Config voiceConfig
 	wg     *sync.WaitGroup
 	Client *http.Client
 	Input  chan Data

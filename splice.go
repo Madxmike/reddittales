@@ -12,11 +12,11 @@ import (
 )
 
 type Splicer struct {
+	Config         stitchConfig
 	Input          chan Data
 	screenshotPath string
 	voiceClipPath  string
 	outputPath     string
-	finishedPath   string
 }
 
 func (s *Splicer) Start(ctx context.Context) {
@@ -119,7 +119,7 @@ func (s *Splicer) stitchAV(data Data) ([]string, error) {
 
 func (s *Splicer) moveFinishedFile(filename string) error {
 
-	err := os.Rename(s.outputPath+filename, s.finishedPath+filename)
+	err := os.Rename(s.outputPath+filename, s.Config.FinishedFilePath+filename)
 	if err != nil {
 		return errors.Wrap(err, "could not move file")
 	}

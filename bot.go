@@ -34,6 +34,7 @@ func NewBot(config Config, secrets Secrets) Bot {
 		server: server,
 		reddit: reddit,
 		voiceGen: VoiceGenerator{
+			Config: config.Voice,
 			wg:     &wg,
 			Client: http.DefaultClient,
 			Input:  make(chan Data),
@@ -43,14 +44,14 @@ func NewBot(config Config, secrets Secrets) Bot {
 			wg:         &wg,
 			Input:      make(chan Data),
 			path:       PATH_SCREEN_SHOTS,
-			serverAddr: "http://127.0.0.1:" + server.port,
+			serverAddr: "http://127.0.0.1:" + config.Server.Port,
 		},
 		splicer: Splicer{
+			Config:         config.Stitch,
 			Input:          make(chan Data),
 			screenshotPath: PATH_SCREEN_SHOTS,
 			voiceClipPath:  PATH_VOICE_CLIPS,
 			outputPath:     PATH_SPLICED,
-			finishedPath:   config.FinishedFilePath,
 		},
 	}
 }
