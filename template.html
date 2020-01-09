@@ -8,10 +8,13 @@
         <title>Document</title>
     </head>
         <style>
+            body {
+                background-color: 	#222222;
+
+            }
          #post {
              width: 100%;
              height: 100%;
-             background-color: 	#333333;
              color: white;
              font-family: verdana, arial, helvetica, sans-serif;
              padding: 1%;
@@ -22,6 +25,10 @@
             color: white;
             text-underline: none;
         }
+            #score {
+                color: lightgray;
+                display: inline !important;
+            }
 
          #post * {
             display: block;
@@ -29,6 +36,7 @@
         }
 
         #author {
+            color: #6a98af
         }
         #text {
             max-width: 100vw;
@@ -45,18 +53,18 @@
         #faux_buttons {
             margin-top: 1%
         }
+
     </style>
     <body>
         <div id="post">
-            <h4>{{.Title}}</h4>
-            <sub id="author">submitted by {{.Username}}</sub>
-            <div id="text">{{.Text}}</div>
-            <div id="faux_buttons">Share Report Save </div>
+            <h4 id="Title">{{.Title}}</h4>
+            <sub id="author">[-] {{.Username}}<span id="score"> {{.Score}} points  7 hours ago</span></sub>
+            {{if .Text}}
+                <div id="text">{{.Text}}</div>
+            {{end}}
+            <div id="faux_buttons">permalink embed save report give award reply </div>
         </div>
-
-
         <div id="#footer"></div>
-
     </body>
     </html>
 {{end}}

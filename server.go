@@ -58,7 +58,7 @@ func (s *Server) postData(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) executeTemplate(w io.Writer) error {
 	if s.config.RefreshTemplate {
-		t, err := s.renderTemplate.ParseGlob(TemplateFileName)
+		t, err := template.New("post").ParseGlob(TemplateFileName)
 		if err != nil {
 			return errors.Wrap(err, "could not refresh template")
 		}
