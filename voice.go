@@ -18,7 +18,6 @@ type VoiceGenerator struct {
 	wg     *sync.WaitGroup
 	Client *http.Client
 	Input  chan Data
-	path   string
 }
 
 func (v *VoiceGenerator) Start(ctx context.Context) {
@@ -43,7 +42,7 @@ func (v *VoiceGenerator) generate(data Data) error {
 		return errors.Wrap(err, "could not start tts client")
 	}
 
-	dirName := fmt.Sprintf("%s%s/", v.path, data.ID)
+	dirName := fmt.Sprintf("%s%c%s%c", os.TempDir(), os.PathSeparator, data.ID, os.PathSeparator)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
 	lines := data.Lines()
@@ -59,7 +58,7 @@ func (v *VoiceGenerator) generate(data Data) error {
 			return errors.Wrap(err, "could not generate voice clips")
 		}
 
-		filename := fmt.Sprintf("%s/%d.mp3", dirName, n)
+		filename := fmt.Sprintf("%s%c%d.mp3", dirName, os.PathSeparator, n)
 		err = ioutil.WriteFile(filename, b, 0777)
 		if err != nil {
 			return errors.Wrap(err, "could not save voice clip")
@@ -67,7 +66,7 @@ func (v *VoiceGenerator) generate(data Data) error {
 	}
 
 	for _, comment := range data.Comments {
-		comment.ID = fmt.Sprintf("%s/%s", data.ID, comment.ID)
+		comment.ID = fmt.Sprintf("%s%c%s", data.ID, os.PathSeparator, comment.ID)
 		_ = v.generate(comment)
 	}
 	return nil

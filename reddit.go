@@ -19,7 +19,7 @@ type RedditGenerator struct {
 	reddit     reddit.Bot
 }
 
-func NewRedditGenerator(secrets Secrets, config redditConfig, pollInterval time.Duration) (*RedditGenerator, error) {
+func NewRedditGenerator(secrets Secrets, config redditConfig) (*RedditGenerator, error) {
 	grawCfg := reddit.BotConfig{
 		Agent: secrets.UserAgent,
 		App: reddit.App{
@@ -33,16 +33,18 @@ func NewRedditGenerator(secrets Secrets, config redditConfig, pollInterval time.
 	if err != nil {
 		return nil, errors.Wrap(err, "could not start reddit bot")
 	}
-
+	delay := time.Duration(config.PollDelay) * time.Minute
 	return &RedditGenerator{
 		Output:     make(chan Data),
 		config:     config,
-		pollTicker: time.NewTicker(pollInterval),
+		pollTicker: time.NewTicker(delay),
 		reddit:     bot,
 	}, nil
 }
 
 func (r *RedditGenerator) Start(ctx context.Context) {
+	//Immediately process so we dont have to wait for timer to tick once.
+	r.poll()
 	for {
 		select {
 		case <-r.pollTicker.C:
@@ -77,7 +79,6 @@ func (r *RedditGenerator) poll() {
 }
 
 func (r *RedditGenerator) processPost(subConfig subredditConfig, post *reddit.Post) error {
-
 	post, err := r.reddit.Thread(post.Permalink)
 	if err != nil {
 		return errors.Wrap(err, "could not get full post thread")

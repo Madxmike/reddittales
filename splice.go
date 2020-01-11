@@ -12,11 +12,8 @@ import (
 )
 
 type Splicer struct {
-	Config         stitchConfig
-	Input          chan Data
-	screenshotPath string
-	voiceClipPath  string
-	outputPath     string
+	Config stitchConfig
+	Input  chan Data
 }
 
 func (s *Splicer) Start(ctx context.Context) {
@@ -28,20 +25,25 @@ func (s *Splicer) Start(ctx context.Context) {
 				log.Println(err)
 				continue
 			}
-			finalFilename, err := s.stitchVideo(s.outputPath, s.reverseNames(processedFilenames), in.ID)
+
+			path := fmt.Sprintf("%s%c%s%c", os.TempDir(), os.PathSeparator, in.ID, os.PathSeparator)
+			for i := range processedFilenames {
+				processedFilenames[i] = strings.TrimPrefix(processedFilenames[i], path)
+			}
+			finalFilename, err := s.stitchVideo(path, s.reverseNames(processedFilenames), in.ID)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			err = s.moveFinishedFile(finalFilename)
+			err = s.moveFinishedFile(path, finalFilename)
 			if err != nil {
 				log.Println(err)
 				continue
 			}
-			//err = s.cleanupAll(in)
-			//if err != nil {
-			//	log.Println(err)
-			//}
+			err = s.cleanupAll(in)
+			if err != nil {
+				log.Println(err)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -50,10 +52,10 @@ func (s *Splicer) Start(ctx context.Context) {
 
 func (s *Splicer) process(data Data) ([]string, error) {
 	processedFilenames := make([]string, 0)
-	dirName := fmt.Sprintf("%s%s/", s.outputPath, data.ID)
+	dirName := fmt.Sprintf("%s%c%s%c", os.TempDir(), os.PathSeparator, data.ID, os.PathSeparator)
 	_ = os.Mkdir(dirName, os.ModeDir)
 	for _, comment := range data.Comments {
-		comment.ID = fmt.Sprintf("%s/%s", data.ID, comment.ID)
+		comment.ID = fmt.Sprintf("%s%c%s", data.ID, os.PathSeparator, comment.ID)
 		processed, err := s.process(comment)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not process comment")
@@ -78,7 +80,7 @@ func (s *Splicer) stitchVideo(dirName string, filenames []string, outputFilename
 	var processedFilename string
 	b := make([]byte, 0)
 	for _, name := range filenames {
-		write := []byte(fmt.Sprintf("file '%s'\n", name))
+		write := []byte(fmt.Sprintf("file '%s%s'\n", dirName, name))
 		b = append(b, write...)
 	}
 	muxFilename := fmt.Sprintf("%s%s", dirName, "filenames.txt")
@@ -86,13 +88,13 @@ func (s *Splicer) stitchVideo(dirName string, filenames []string, outputFilename
 	if err != nil {
 		return processedFilename, errors.Wrap(err, "could not write filenames file")
 	}
-	processedFilename = fmt.Sprintf("%s%s.mkv", dirName, outputFilename)
+	processedFilename = fmt.Sprintf("%s%s.mp4", dirName, outputFilename)
 	err = s.execute("-y", "-f", "concat", "-safe", "0", "-i", muxFilename, "-c", "copy", processedFilename)
 	if err != nil {
 		return processedFilename, errors.Wrap(err, "could not combine files")
 	}
 
-	return strings.TrimPrefix(processedFilename, s.outputPath), nil
+	return processedFilename, nil
 }
 
 func (s *Splicer) stitchAV(data Data) ([]string, error) {
@@ -104,7 +106,7 @@ func (s *Splicer) stitchAV(data Data) ([]string, error) {
 	}
 
 	for k := range lines {
-		outputFilename := fmt.Sprintf("%d.mkv", k)
+		outputFilename := fmt.Sprintf("%d.mp4", k)
 		screenshotFilename := fmt.Sprintf("%s%d.png", s.screenshotDir(data), k)
 		voiceclipFilename := fmt.Sprintf("%s%d.mp3", s.voiceDir(data), k)
 		stitchedFilename := fmt.Sprintf("%s%s", s.outputDir(data), outputFilename)
@@ -117,9 +119,8 @@ func (s *Splicer) stitchAV(data Data) ([]string, error) {
 	return outputFilenames, nil
 }
 
-func (s *Splicer) moveFinishedFile(filename string) error {
-
-	err := os.Rename(s.outputPath+filename, s.Config.FinishedFilePath+filename)
+func (s *Splicer) moveFinishedFile(path string, filename string) error {
+	err := os.Rename(filename, s.Config.FinishedFilePath+strings.TrimPrefix(filename, path))
 	if err != nil {
 		return errors.Wrap(err, "could not move file")
 	}
@@ -180,17 +181,17 @@ func (s *Splicer) cleanupAll(data Data) error {
 }
 
 func (s *Splicer) dir(base string, data Data) string {
-	return fmt.Sprintf("%s%s/", base, data.ID)
+	return fmt.Sprintf("%s%c%s%c", base, os.PathSeparator, data.ID, os.PathSeparator)
 }
 
 func (s *Splicer) voiceDir(data Data) string {
-	return s.dir(s.voiceClipPath, data)
+	return s.dir(os.TempDir(), data)
 }
 
 func (s *Splicer) screenshotDir(data Data) string {
-	return s.dir(s.screenshotPath, data)
+	return s.dir(os.TempDir(), data)
 }
 
 func (s *Splicer) outputDir(data Data) string {
-	return s.dir(s.outputPath, data)
+	return s.dir(os.TempDir(), data)
 }
