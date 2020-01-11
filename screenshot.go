@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/chromedp/chromedp"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -80,22 +79,22 @@ func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, select
 
 func (s *ScreenshotGenerator) generate(ctx context.Context, data Data, selector string, filename string) error {
 	//TODO - attach to a chromium headless image instead
-	chromeCtx, cancel := chromedp.NewContext(ctx)
-	defer cancel()
+	//chromeCtx, cancel := chromedp.NewContext(ctx)
+	//defer cancel()
 	err := s.sendData(data)
 	if err != nil {
 		return errors.Wrap(err, "could not generate screenshot")
 	}
-	var b []byte
-	err = chromedp.Run(chromeCtx, s.elementScreenshot(s.serverAddr, selector, &b))
-	if err != nil {
-		return errors.Wrap(err, "could not take screenshot")
-	}
-
-	err = ioutil.WriteFile(filename, b, 0777)
-	if err != nil {
-		return errors.Wrap(err, "could not save screenshot")
-	}
+	//var b []byte
+	//err = chromedp.Run(chromeCtx, s.elementScreenshot(s.serverAddr, selector, &b))
+	//if err != nil {
+	//	return errors.Wrap(err, "could not take screenshot")
+	//}
+	//
+	//err = ioutil.WriteFile(filename, b, 0777)
+	//if err != nil {
+	//	return errors.Wrap(err, "could not save screenshot")
+	//}
 
 	return nil
 }
