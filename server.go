@@ -11,10 +11,6 @@ import (
 	"strings"
 )
 
-const (
-	TemplateFileName = "template.html"
-)
-
 type Server struct {
 	config         serverConfig
 	data           Data
@@ -22,7 +18,7 @@ type Server struct {
 }
 
 func (s *Server) Start(ctx context.Context) {
-	t, err := template.ParseGlob(TemplateFileName)
+	t, err := template.ParseGlob(s.config.TemplatePath)
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +54,7 @@ func (s *Server) postData(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) executeTemplate(w io.Writer) error {
 	if s.config.RefreshTemplate {
-		t, err := template.New("post").ParseGlob(TemplateFileName)
+		t, err := template.New("post").ParseGlob(s.config.TemplatePath)
 		if err != nil {
 			return errors.Wrap(err, "could not refresh template")
 		}

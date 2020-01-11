@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 )
 
 var (
-	ConfigPath = flag.String("config", "", "The path of the config")
+	ConfigPath  = flag.String("config", "", "The path of the config file")
+	SecretsPath = flag.String("secrets", "", "The path of the secrets file")
 )
 
 func init() {
@@ -17,12 +17,11 @@ func init() {
 }
 
 func main() {
-	log.Println(os.TempDir())
 	config, err := LoadConfig(*ConfigPath)
 	if err != nil {
 		panic(err)
 	}
-	secrets, err := LoadSecrets("secrets.json")
+	secrets, err := LoadSecrets(*SecretsPath)
 	if err != nil {
 		panic(err)
 	}

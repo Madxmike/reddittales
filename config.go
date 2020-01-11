@@ -15,10 +15,12 @@ type Config struct {
 
 type serverConfig struct {
 	Port            string `json:"port"`
+	TemplatePath    string `json:templatePath`
 	RefreshTemplate bool   `json:"refreshTemplate"`
 }
 
 type redditConfig struct {
+	PollDelay    int               `json:"pollDelayMinutes"`
 	SanitizeText bool              `json:"sanitizeText"`
 	Watched      []subredditConfig `json:"watched"`
 }
