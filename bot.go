@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 )
 
 type Bot struct {
@@ -23,7 +22,7 @@ func NewBot(config Config, secrets Secrets) Bot {
 		data:   Data{},
 	}
 
-	reddit, err := NewRedditGenerator(secrets, config.Reddit, 5*time.Second)
+	reddit, err := NewRedditGenerator(secrets, config.Reddit)
 	if err != nil {
 		panic(err)
 	}
@@ -38,20 +37,15 @@ func NewBot(config Config, secrets Secrets) Bot {
 			wg:     &wg,
 			Client: http.DefaultClient,
 			Input:  make(chan Data),
-			path:   PATH_VOICE_CLIPS,
 		},
 		screenshotGen: ScreenshotGenerator{
 			wg:         &wg,
 			Input:      make(chan Data),
-			path:       PATH_SCREEN_SHOTS,
 			serverAddr: "http://127.0.0.1:" + config.Server.Port,
 		},
 		splicer: Splicer{
-			Config:         config.Stitch,
-			Input:          make(chan Data),
-			screenshotPath: PATH_SCREEN_SHOTS,
-			voiceClipPath:  PATH_VOICE_CLIPS,
-			outputPath:     PATH_SPLICED,
+			Config: config.Stitch,
+			Input:  make(chan Data),
 		},
 	}
 }
@@ -82,4 +76,6 @@ func (bot *Bot) Process(data Data) {
 	//TODO - Splitter
 	bot.wg.Wait()
 	bot.splicer.Input <- data
+	log.Printf("Finished %s\n", data.ID)
+
 }

@@ -3,20 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 )
 
-const (
-	PATH_TALES_JSON   = "tales/"
-	PATH_VOICE_CLIPS  = "voiceclips/"
-	PATH_SCREEN_SHOTS = "shots/"
-	PATH_SPLICED      = "spliced/"
-)
-
 var (
-	OutputDir           = flag.String("output", "", "The path finished files are outputted to")
-	BackgroundVideoPath = flag.String("background", "", "The path of the video to use as a background")
+	ConfigPath = flag.String("config", "", "The path of the config")
 )
 
 func init() {
@@ -24,7 +17,8 @@ func init() {
 }
 
 func main() {
-	config, err := LoadConfig("config.json")
+	log.Println(os.TempDir())
+	config, err := LoadConfig(*ConfigPath)
 	if err != nil {
 		panic(err)
 	}
