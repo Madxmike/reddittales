@@ -98,14 +98,14 @@ func (s *Splicer) stitchVideo(dirName string, filenames []string, outputFilename
 }
 
 func (s *Splicer) stitchAV(data Data) ([]string, error) {
-	lines := data.Lines()
-	outputFilenames := make([]string, 0, len(lines))
+	sentences := data.Sentences()
+	outputFilenames := make([]string, 0, len(sentences))
 
 	if data.Title != "" {
-		lines = append([]string{data.Title}, lines...)
+		sentences = append([]string{data.Title}, sentences...)
 	}
 
-	for k := range lines {
+	for k := range sentences {
 		outputFilename := fmt.Sprintf("%d.mp4", k)
 		screenshotFilename := fmt.Sprintf("%s%d.png", s.screenshotDir(data), k)
 		voiceclipFilename := fmt.Sprintf("%s%d.mp3", s.voiceDir(data), k)

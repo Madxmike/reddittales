@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"gopkg.in/neurosnap/sentences.v1/english"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -18,17 +19,20 @@ type Data struct {
 	Comments []Data `json:"comments"`
 }
 
-func (d Data) Lines() []string {
-	split := strings.SplitAfter(d.Text, ".")
-	n := 0
-	for _, s := range split {
-		if len(s) > 0 {
-			split[n] = s
-			n++
-		}
+func (d Data) Sentences() []string {
+	tokenizer, err := english.NewSentenceTokenizer(nil)
+	if err != nil {
+		//TODO - handle this error
+		panic(err)
 	}
-	split = split[:n]
-	return split
+
+	tokens := tokenizer.Tokenize(d.Text)
+	//Sentences -> strings here for easy use in the rest of the program
+	sentences := make([]string, 0, len(tokens))
+	for i := range tokens {
+		sentences = append(sentences, tokens[i].Text)
+	}
+	return sentences
 }
 
 func LoadAllData(path string) ([]Data, error) {

@@ -45,14 +45,14 @@ func (v *VoiceGenerator) generate(data Data) error {
 	dirName := fmt.Sprintf("%s%c%s%c", os.TempDir(), os.PathSeparator, data.ID, os.PathSeparator)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
-	lines := data.Lines()
+	sentences := data.Sentences()
 	if data.Title != "" {
-		lines = append([]string{data.Title}, lines...)
+		sentences = append([]string{data.Title}, sentences...)
 	}
 
 	serverData := data
 	serverData.Text = ""
-	for n, text := range lines {
+	for n, text := range sentences {
 		b, err := v.processRequest(client, text)
 		if err != nil {
 			return errors.Wrap(err, "could not generate voice clips")

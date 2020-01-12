@@ -51,14 +51,14 @@ func (s *ScreenshotGenerator) generateAll(ctx context.Context, data Data, select
 	dirName := fmt.Sprintf("%s%c%s%c", os.TempDir(), os.PathSeparator, data.ID, os.PathSeparator)
 	_ = os.Mkdir(dirName, os.ModeDir)
 
-	lines := data.Lines()
+	sentences := data.Sentences()
 	if data.Title != "" {
-		lines = append([]string{data.Title}, lines...)
+		sentences = append([]string{data.Title}, sentences...)
 	}
 
 	serverData := data
 	serverData.Text = ""
-	for n, text := range lines {
+	for n, text := range sentences {
 		serverData.Text += text
 		err := s.generate(ctx, serverData, selector, fmt.Sprintf("%s%c%d.png", dirName, os.PathSeparator, n))
 		if err != nil {
