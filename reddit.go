@@ -79,17 +79,20 @@ func (r *RedditGenerator) poll() {
 }
 
 func (r *RedditGenerator) processPost(subConfig subredditConfig, post *reddit.Post) error {
+	if post.Distinguished != "" {
+		return errors.New("post is distinguished")
+	}
 	post, err := r.reddit.Thread(post.Permalink)
 	if err != nil {
 		return errors.Wrap(err, "could not get full post thread")
 	}
-
 	topLevels := r.filterTopLevel(post.Replies)
+	filteredComments := r.filterMod(topLevels)
 	capturedComments := make([]*reddit.Comment, 0, subConfig.NumComments)
-	if len(topLevels) < cap(capturedComments) {
-		capturedComments = append(capturedComments, topLevels...)
+	if len(filteredComments) < cap(capturedComments) {
+		capturedComments = append(capturedComments, filteredComments...)
 	} else {
-		capturedComments = append(capturedComments, topLevels[:cap(capturedComments)]...)
+		capturedComments = append(capturedComments, filteredComments[:cap(capturedComments)]...)
 	}
 
 	postData := r.postToData(post)
@@ -98,14 +101,24 @@ func (r *RedditGenerator) processPost(subConfig subredditConfig, post *reddit.Po
 	return nil
 }
 
-func (r *RedditGenerator) filterTopLevel(comments []*reddit.Comment) []*reddit.Comment {
-	topLevels := make([]*reddit.Comment, 0)
+func (r *RedditGenerator) filterMod(comments []*reddit.Comment) []*reddit.Comment {
+	filtered := make([]*reddit.Comment, 0)
 	for _, comment := range comments {
-		if comment.IsTopLevel() {
-			topLevels = append(topLevels, comment)
+		if comment.Distinguished == "" {
+			filtered = append(filtered, comment)
 		}
 	}
-	return topLevels
+	return filtered
+}
+
+func (r *RedditGenerator) filterTopLevel(comments []*reddit.Comment) []*reddit.Comment {
+	filtered := make([]*reddit.Comment, 0)
+	for _, comment := range comments {
+		if comment.IsTopLevel() {
+			filtered = append(filtered, comment)
+		}
+	}
+	return filtered
 }
 
 func (r *RedditGenerator) sanitizeText(text string) string {
