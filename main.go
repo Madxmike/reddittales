@@ -1,44 +1,33 @@
 package main
 
 import (
-	"context"
 	"flag"
+	"github.com/pkg/errors"
+	"log"
 	"os"
 	"os/signal"
 )
 
-const (
-	PATH_TALES_JSON   = "tales/"
-	PATH_VOICE_CLIPS  = "voiceclips/"
-	PATH_SCREEN_SHOTS = "shots/"
-	PATH_SPLICED      = "spliced/"
-)
-
 var (
-	OutputDir           = flag.String("output", "", "The path finished files are outputted to")
-	BackgroundVideoPath = flag.String("background", "", "The path of the video to use as a background")
+	AgentFile = flag.String("agentFile", "", "The filepath of the agent file")
 )
-
-func init() {
-	flag.Parse()
-}
 
 func main() {
-	config, err := LoadConfig("config.json")
-	if err != nil {
-		panic(err)
+	flag.Parse()
+	if AgentFile == nil {
+		panic(errors.New("agent file not provided"))
 	}
-	secrets, err := LoadSecrets("secrets.json")
+
+	worker, err := NewRedditWorker(*AgentFile)
+
+	posts, err := worker.ScrapePosts("askreddit", "top", "day", 3)
 	if err != nil {
 		panic(err)
 	}
 
-	//TODO - Flags
-	bot := NewBot(config, secrets)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go bot.Start(ctx)
-
+	for _, p := range posts {
+		log.Println(p.Name)
+	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
