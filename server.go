@@ -5,13 +5,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"html/template"
+	"log"
 	"net/http"
 )
 
 func StartServer(port string) {
 	r := mux.NewRouter()
 	r.Handle("/", r.NotFoundHandler)
-	h, err := newTemplateHandler("./template/*.html")
+	h, err := newTemplateHandler("./templates/*")
 	if err != nil {
 		panic(errors.Wrap(err, "could not start server"))
 	}
@@ -40,5 +41,12 @@ func newTemplateHandler(templatePath string) (*TemplateHandler, error) {
 func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	renderType := query.Get("render")
-
+	log.Println(query)
+	err := h.t.ExecuteTemplate(w, renderType, query)
+	if err != nil {
+		log.Println(errors.Wrap(err, "could not serve template"))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	return
 }
