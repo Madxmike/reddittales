@@ -3,13 +3,19 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	"html/template"
 	"net/http"
 )
 
 func StartServer(port string) {
 	r := mux.NewRouter()
 	r.Handle("/", r.NotFoundHandler)
-	r.HandleFunc("/screenshot", ServeScreenshotPage)
+	h, err := newTemplateHandler("./template/*.html")
+	if err != nil {
+		panic(errors.Wrap(err, "could not start server"))
+	}
+	r.Handle("/screenshot", h)
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
@@ -18,6 +24,21 @@ func StartServer(port string) {
 	panic(server.ListenAndServe())
 }
 
-func ServeScreenshotPage(w http.ResponseWriter, r *http.Request) {
+type TemplateHandler struct {
+	t *template.Template
+}
+
+func newTemplateHandler(templatePath string) (*TemplateHandler, error) {
+	t, err := template.ParseGlob(templatePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not load templates")
+	}
+
+	return &TemplateHandler{t: t}, nil
+}
+
+func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	renderType := query.Get("render")
 
 }
