@@ -34,10 +34,11 @@ func (vw *VideoWorker) Process(finished chan<- []byte) {
 Comment:
 	for _, c := range vw.comments {
 		sr := ScreenshotReader{
-			client:   http.DefaultClient,
-			Username: c.Author,
-			Karma:    c.Ups,
-			Text:     "",
+			client:     http.DefaultClient,
+			renderType: CommentRender,
+			Username:   c.Author,
+			Karma:      c.Ups,
+			Text:       "",
 		}
 		//TODO - Implement an actual processing lib here to split text naturally
 		splitText := strings.Split(c.Body, " ")
@@ -58,6 +59,16 @@ Comment:
 		}
 	}
 
+	stitchedClips, err := vw.StitchClips()
+	if err != nil {
+		log.Println(errors.Wrap(err, "could not generate clip"))
+		return
+	}
+	final, err := vw.finalStitch(stitchedClips)
+	if err != nil {
+		log.Println(errors.Wrap(err, "could not generate clip"))
+	}
+	finished <- final
 }
 
 func (vw *VideoWorker) StitchClips() ([][]byte, error) {
