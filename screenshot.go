@@ -11,11 +11,19 @@ import (
 	"strconv"
 )
 
+type RenderType string
+
+const (
+	PostRender    RenderType = "post"
+	CommentRender            = "comment"
+)
+
 type ScreenshotReader struct {
-	client   *http.Client
-	Username string
-	Karma    int32
-	Text     string
+	client     *http.Client
+	renderType RenderType
+	Username   string
+	Karma      int32
+	Text       string
 }
 
 func (r *ScreenshotReader) takeScreenshot(res *[]byte) chromedp.Tasks {
@@ -23,6 +31,7 @@ func (r *ScreenshotReader) takeScreenshot(res *[]byte) chromedp.Tasks {
 		Host: fmt.Sprintf("https://localhost:%s", os.Getenv("PORT")),
 	}
 	query := URL.Query()
+	query.Add("render", string(r.renderType))
 	query.Add("username", r.Username)
 	query.Add("karma", strconv.Itoa(int(r.Karma)))
 	query.Add("text", r.Text)
