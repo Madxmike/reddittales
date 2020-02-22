@@ -25,6 +25,8 @@ func main() {
 		panic(errors.Wrap(err, "could not create reddit worker"))
 	}
 
+	go StartServer(os.Getenv("PORT"))
+
 	posts, err := rw.ScrapePosts("askreddit", "top", "day", 3)
 	if err != nil {
 		panic(errors.Wrap(err, "could not scrape posts"))

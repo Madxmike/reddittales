@@ -7,6 +7,7 @@ require (
 	github.com/beefsack/go-rate v0.0.0-20180408011153-efa7637bb9b6 // indirect
 	github.com/chromedp/chromedp v0.5.2
 	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/gorilla/mux v1.7.4
 	github.com/jzelinskie/geddit v0.0.0-20190913104144-95ef6806b073
 	github.com/pkg/errors v0.8.1
 	github.com/turnage/graw v0.0.0-20191224200831-a592320d5bc9

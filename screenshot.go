@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/chromedp/chromedp"
 	"github.com/pkg/errors"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,13 +29,18 @@ type ScreenshotReader struct {
 
 func (r *ScreenshotReader) takeScreenshot(res *[]byte) chromedp.Tasks {
 	URL := url.URL{
-		Host: fmt.Sprintf("https://localhost:%s", os.Getenv("PORT")),
+		Scheme: "http",
+		Host:   fmt.Sprintf("localhost:%s", os.Getenv("PORT")),
+		Path:   "/screenshot",
 	}
 	query := URL.Query()
 	query.Add("render", string(r.renderType))
 	query.Add("username", r.Username)
 	query.Add("karma", strconv.Itoa(int(r.Karma)))
 	query.Add("text", r.Text)
+
+	URL.RawQuery = query.Encode()
+	log.Println(URL.String())
 
 	return chromedp.Tasks{
 		chromedp.Navigate(URL.String()),
@@ -49,7 +55,7 @@ func (r ScreenshotReader) Read(b []byte) (n int, err error) {
 	defer cancel()
 	err = chromedp.Run(ctx, r.takeScreenshot(&b))
 	if err != nil {
-		return len(b), errors.Wrap(err, "could not read screenshot")
+		return len(b), errors.Wrap(err, "could not create screenshot")
 	}
 	return len(b), nil
 }
