@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func StartServer(port string) {
@@ -17,12 +18,25 @@ func StartServer(port string) {
 		panic(errors.Wrap(err, "could not start server"))
 	}
 	r.Handle("/screenshot", h)
+	r.Handle("/static", Static("/static/"))
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
 	}
 
 	panic(server.ListenAndServe())
+}
+
+func Static(path string) http.Handler {
+	fs := http.FileServer(http.Dir("." + path))
+	fs = http.StripPrefix(path, fs)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 }
 
 type TemplateHandler struct {

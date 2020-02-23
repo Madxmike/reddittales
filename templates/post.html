@@ -4,10 +4,22 @@
     <head>
         <meta charset="UTF-8">
         <title>RedditTales</title>
+        <link type="text/css" href="/static/css/index.css">
     </head>
     <body>
     <div id="main">
-        <p class="username">{{.username}}</p>
+        <div class="karma-container">
+            <span class="upvote_post"></span>
+            <span id="karma">{{.Karma}}</span>
+            <span class="downvote_post"></span>
+        </div>
+        <div class="title-container">
+            <span id="title">{{.Text}}</span>
+            <span id="username">
+                <span class="subtext">submitted by</span>
+                <span class="link">{{.username}}</span>
+            </span>
+        </div>
     </div>
     </body>
     </html>

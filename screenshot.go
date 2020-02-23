@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/chromedp/chromedp"
 	"github.com/pkg/errors"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,6 +42,9 @@ func (r *ScreenshotGenerator) takeScreenshot(res *[]byte) chromedp.Tasks {
 	query.Add("text", r.Text)
 
 	URL.RawQuery = query.Encode()
+	if r.renderType == PostRender {
+		log.Println(URL.String())
+	}
 	return chromedp.Tasks{
 		chromedp.Navigate(URL.String()),
 		chromedp.WaitVisible("#main", chromedp.ByID),
@@ -50,6 +54,7 @@ func (r *ScreenshotGenerator) takeScreenshot(res *[]byte) chromedp.Tasks {
 }
 
 func (r ScreenshotGenerator) Generate(ctx context.Context) ([]byte, error) {
+
 	timeout, _ := context.WithTimeout(ctx, 5*time.Second)
 	ctx, cancel := chromedp.NewContext(timeout)
 	defer cancel()
