@@ -62,7 +62,7 @@ func main() {
 		case <-ctx.Done():
 			return
 		case final := <-finished:
-			log.Println(final)
+			log.Println(len(final))
 			return
 		}
 	}()

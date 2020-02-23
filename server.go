@@ -39,6 +39,7 @@ func newTemplateHandler(templatePath string) (*TemplateHandler, error) {
 }
 
 func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	query := r.URL.Query()
 	renderType := query.Get("render")
 	err := h.t.ExecuteTemplate(w, renderType, query)

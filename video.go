@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/turnage/graw/reddit"
+	"io/ioutil"
 	"log"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -20,7 +25,7 @@ type VideoWorker struct {
 
 type Clip struct {
 	screenshotData []byte
-	voiceData      []byte
+	audioData      []byte
 }
 
 func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) VideoWorker {
@@ -32,7 +37,6 @@ func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) VideoWorker {
 }
 
 func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, finished chan<- []byte) {
-	clips := make([]Clip, 0)
 Comment:
 	for _, c := range vw.comments {
 		screenshotGenerator.renderType = CommentRender
@@ -41,13 +45,12 @@ Comment:
 
 		//TODO - Implement an actual processing lib here to split text naturally
 		splitText := strings.Split(c.Body, "\n")
-		log.Println(len(splitText))
 		for _, line := range splitText {
 			screenshotGenerator.Text += line
 			audioGenerator.Text += line
 			clip := Clip{
 				screenshotData: make([]byte, 0),
-				voiceData:      make([]byte, 0),
+				audioData:      make([]byte, 0),
 			}
 			err := clip.Read(ctx, screenshotGenerator, audioGenerator)
 			if err != nil {
@@ -56,11 +59,19 @@ Comment:
 				log.Println(errors.Wrap(err, "could not generate clip"))
 				continue Comment
 			}
-			clips = append(clips, clip)
+			vw.clips = append(vw.clips, clip)
 		}
 	}
 
-	stitchedClips, err := vw.StitchClips()
+	dirName, err := ioutil.TempDir("", vw.post.ID)
+	if err != nil {
+		log.Println(errors.Wrap(err, "could not generate clip"))
+		return
+	}
+	log.Println(dirName)
+
+	defer os.RemoveAll(dirName)
+	stitchedClips, err := vw.StitchClips(dirName)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not generate clip"))
 		return
@@ -68,14 +79,16 @@ Comment:
 	final, err := vw.finalStitch(stitchedClips)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not generate clip"))
+		return
 	}
+
 	finished <- final
 }
 
-func (vw *VideoWorker) StitchClips() ([][]byte, error) {
-	stitchedClips := make([][]byte, 0, len(vw.clips))
-	for _, clip := range vw.clips {
-		stitched, err := clip.Stitch()
+func (vw *VideoWorker) StitchClips(dirName string) ([]string, error) {
+	stitchedClips := make([]string, 0, len(vw.clips))
+	for k, clip := range vw.clips {
+		stitched, err := clip.Stitch(dirName, strconv.Itoa(k))
 		if err != nil {
 			return nil, errors.Wrap(err, "could not stitch clips")
 		}
@@ -84,7 +97,8 @@ func (vw *VideoWorker) StitchClips() ([][]byte, error) {
 	return stitchedClips, nil
 }
 
-func (vw *VideoWorker) finalStitch(stitchedClips [][]byte) ([]byte, error) {
+func (vw *VideoWorker) finalStitch(stitchedClips []string) ([]byte, error) {
+	log.Println(stitchedClips)
 	final := make([]byte, 0)
 	//TODO - Call FFMPEG to stitch clips together
 	return final, nil
@@ -95,7 +109,7 @@ func (c *Clip) Read(ctx context.Context, screenshotGen Generator, audioGen Gener
 	if err != nil {
 		return errors.Wrap(err, "could not read screenshot data")
 	}
-	c.voiceData, err = audioGen.Generate(ctx)
+	c.audioData, err = audioGen.Generate(ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not read audio data")
 	}
@@ -103,9 +117,47 @@ func (c *Clip) Read(ctx context.Context, screenshotGen Generator, audioGen Gener
 }
 
 //Call ffmpeg and stitch the audio and image data into one video
-func (c *Clip) Stitch() ([]byte, error) {
-	stitched := make([]byte, 0)
-	//TODO - Call ffmpeg to stitch clip together
+func (c *Clip) Stitch(dirPath, outputName string) (string, error) {
+	screenshotFileName, err := c.writeFile(dirPath, "*.png", c.screenshotData)
+	if err != nil {
+		return "", errors.Wrap(err, "could not create screenshot file")
+	}
+	audioFileName, err := c.writeFile(dirPath, "*.mp3", c.audioData)
+	if err != nil {
+		return "", errors.Wrap(err, "could not audio file")
+	}
 
-	return stitched, nil
+	outputFileName := fmt.Sprintf("%s%c%s.mkv", dirPath, os.PathSeparator, outputName)
+	cmd := exec.Command("ffmpeg",
+		"-r", "1",
+		"-loop", "1",
+		"-i", screenshotFileName,
+		"-i", audioFileName,
+		"-acodec", "copy",
+		"-r", "1",
+		"-shortest",
+		"-vf", "scale=1920:1080",
+		outputFileName,
+	)
+	//cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return "", errors.Wrap(err, "could not run stitch command")
+	}
+
+	return outputFileName, nil
+}
+
+func (c *Clip) writeFile(dirPath, pattern string, b []byte) (string, error) {
+	f, err := ioutil.TempFile(dirPath, pattern)
+	if err != nil {
+		return "", errors.Wrap(err, "could not create file")
+	}
+	defer f.Close()
+	_, err = f.Write(b)
+	if err != nil {
+		return "", errors.Wrap(err, "could not write data")
+	}
+	log.Println(f.Name())
+	return f.Name(), nil
 }
