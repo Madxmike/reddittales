@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Generator interface {
@@ -37,6 +38,8 @@ func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) VideoWorker {
 }
 
 func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, finished chan<- []byte) {
+	startedTime := time.Now()
+	log.Printf("Started video (id: %s) at %s\n", vw.post.ID, startedTime.Format(time.Stamp))
 Comment:
 	for _, c := range vw.comments {
 		screenshotGenerator.renderType = CommentRender
@@ -65,21 +68,22 @@ Comment:
 
 	dirName, err := ioutil.TempDir("", vw.post.ID)
 	if err != nil {
-		log.Println(errors.Wrap(err, "could not generate clip"))
+		log.Println(errors.Wrap(err, "could not video"))
 		return
 	}
 
 	defer os.RemoveAll(dirName)
 	stitchedClips, err := vw.StitchClips(dirName)
 	if err != nil {
-		log.Println(errors.Wrap(err, "could not generate clip"))
+		log.Println(errors.Wrap(err, "could not create video"))
 		return
 	}
 	final, err := vw.finalStitch(stitchedClips, dirName)
 	if err != nil {
-		log.Println(errors.Wrap(err, "could not generate clip"))
+		log.Println(errors.Wrap(err, "could not create video"))
 		return
 	}
+	log.Printf("Finished video (id: %s) at %s after %s seconds\n", vw.post.ID, time.Now().Format(time.Stamp), time.Now().Sub(startedTime)/time.Second)
 
 	finished <- final
 }
@@ -97,8 +101,14 @@ func (vw *VideoWorker) StitchClips(dirName string) ([]string, error) {
 }
 
 func (vw *VideoWorker) finalStitch(stitchedClips []string, dirName string) ([]byte, error) {
-	log.Println(stitchedClips)
-	muxFilename := ""
+	var mux strings.Builder
+	for _, clipPath := range stitchedClips {
+		_, err := mux.WriteString(fmt.Sprintf("file '%s'\n", clipPath))
+		if err != nil {
+			return nil, errors.Wrap(err, "could not write mux file")
+		}
+	}
+	muxFilename, err := writeFile(dirName, "*.txt", []byte(mux.String()))
 	outputFileName := fmt.Sprintf("%s%coutput.mkv", dirName, os.PathSeparator)
 	cmd := exec.Command("ffmpeg",
 		"-y",
@@ -108,12 +118,15 @@ func (vw *VideoWorker) finalStitch(stitchedClips []string, dirName string) ([]by
 		"-c", "copy",
 		outputFileName,
 	)
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not run stitch command")
 	}
-	final := make([]byte, 0)
-	return final, nil
+	b, err := ioutil.ReadFile(outputFileName)
+	if err != nil {
+		return nil, errors.Wrap(err, "could load read output file")
+	}
+	return b, nil
 }
 
 func (c *Clip) Read(ctx context.Context, screenshotGen Generator, audioGen Generator) (err error) {
@@ -130,11 +143,11 @@ func (c *Clip) Read(ctx context.Context, screenshotGen Generator, audioGen Gener
 
 //Call ffmpeg and stitch the audio and image data into one video
 func (c *Clip) Stitch(dirPath, outputName string) (string, error) {
-	screenshotFileName, err := c.writeFile(dirPath, "*.png", c.screenshotData)
+	screenshotFileName, err := writeFile(dirPath, "*.png", c.screenshotData)
 	if err != nil {
 		return "", errors.Wrap(err, "could not create screenshot file")
 	}
-	audioFileName, err := c.writeFile(dirPath, "*.mp3", c.audioData)
+	audioFileName, err := writeFile(dirPath, "*.mp3", c.audioData)
 	if err != nil {
 		return "", errors.Wrap(err, "could not audio file")
 	}
@@ -165,7 +178,7 @@ func (c *Clip) Stitch(dirPath, outputName string) (string, error) {
 	return outputFileName, nil
 }
 
-func (c *Clip) writeFile(dirPath, pattern string, b []byte) (string, error) {
+func writeFile(dirPath, pattern string, b []byte) (string, error) {
 	f, err := ioutil.TempFile(dirPath, pattern)
 	if err != nil {
 		return "", errors.Wrap(err, "could not create file")
