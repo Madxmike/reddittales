@@ -47,7 +47,7 @@ Comment:
 		splitText := strings.Split(c.Body, "\n")
 		for _, line := range splitText {
 			screenshotGenerator.Text += line
-			audioGenerator.Text += line
+			audioGenerator.Text = line
 			clip := Clip{
 				screenshotData: make([]byte, 0),
 				audioData:      make([]byte, 0),
@@ -68,7 +68,6 @@ Comment:
 		log.Println(errors.Wrap(err, "could not generate clip"))
 		return
 	}
-	log.Println(dirName)
 
 	defer os.RemoveAll(dirName)
 	stitchedClips, err := vw.StitchClips(dirName)
@@ -76,7 +75,7 @@ Comment:
 		log.Println(errors.Wrap(err, "could not generate clip"))
 		return
 	}
-	final, err := vw.finalStitch(stitchedClips)
+	final, err := vw.finalStitch(stitchedClips, dirName)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not generate clip"))
 		return
@@ -97,10 +96,23 @@ func (vw *VideoWorker) StitchClips(dirName string) ([]string, error) {
 	return stitchedClips, nil
 }
 
-func (vw *VideoWorker) finalStitch(stitchedClips []string) ([]byte, error) {
+func (vw *VideoWorker) finalStitch(stitchedClips []string, dirName string) ([]byte, error) {
 	log.Println(stitchedClips)
+	muxFilename := ""
+	outputFileName := fmt.Sprintf("%s%coutput.mkv", dirName, os.PathSeparator)
+	cmd := exec.Command("ffmpeg",
+		"-y",
+		"-f", "concat",
+		"-safe", "0",
+		"-i", muxFilename,
+		"-c", "copy",
+		outputFileName,
+	)
+	err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not run stitch command")
+	}
 	final := make([]byte, 0)
-	//TODO - Call FFMPEG to stitch clips together
 	return final, nil
 }
 
@@ -129,14 +141,19 @@ func (c *Clip) Stitch(dirPath, outputName string) (string, error) {
 
 	outputFileName := fmt.Sprintf("%s%c%s.mkv", dirPath, os.PathSeparator, outputName)
 	cmd := exec.Command("ffmpeg",
-		"-r", "1",
+		"-y",
 		"-loop", "1",
+		"-framerate", "2",
 		"-i", screenshotFileName,
 		"-i", audioFileName,
-		"-acodec", "copy",
-		"-r", "1",
+		"-c:v", "libx264",
+		"-preset", "medium",
+		"-tune", "stillimage",
+		"-crf", "18",
+		"-c:a", "copy",
 		"-shortest",
-		"-vf", "scale=1920:1080",
+		"-pix_fmt", "yuv420p",
+		"-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:#333333",
 		outputFileName,
 	)
 	//cmd.Stderr = os.Stderr
@@ -158,6 +175,5 @@ func (c *Clip) writeFile(dirPath, pattern string, b []byte) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "could not write data")
 	}
-	log.Println(f.Name())
 	return f.Name(), nil
 }

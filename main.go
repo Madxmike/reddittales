@@ -29,7 +29,7 @@ func main() {
 
 	go StartServer(os.Getenv("PORT"))
 
-	posts, err := rw.ScrapePosts("askreddit", "top", "day", 3)
+	posts, err := rw.ScrapePosts("askreddit", "top", "day", 1)
 	if err != nil {
 		panic(errors.Wrap(err, "could not scrape posts"))
 	}
