@@ -41,7 +41,6 @@ func newTemplateHandler(templatePath string) (*TemplateHandler, error) {
 func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	renderType := query.Get("render")
-	log.Println(query)
 	err := h.t.ExecuteTemplate(w, renderType, query)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not serve template"))
