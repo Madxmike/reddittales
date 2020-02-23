@@ -40,29 +40,19 @@ func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) VideoWorker {
 func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, finished chan<- []byte) {
 	startedTime := time.Now()
 	log.Printf("Started video (id: %s) at %s\n", vw.post.ID, startedTime.Format(time.Stamp))
-Comment:
+	err := vw.processPost(ctx, screenshotGenerator, audioGenerator)
+	if err != nil {
+		log.Println(errors.Wrap(err, fmt.Sprintf("could not process post title id: %s", vw.post.ID)))
+		return
+	}
 	for _, c := range vw.comments {
 		screenshotGenerator.renderType = CommentRender
 		screenshotGenerator.Username = c.Author
 		screenshotGenerator.Karma = c.Ups
-
-		//TODO - Implement an actual processing lib here to split text naturally
-		splitText := strings.Split(c.Body, "\n")
-		for _, line := range splitText {
-			screenshotGenerator.Text += line
-			audioGenerator.Text = line
-			clip := Clip{
-				screenshotData: make([]byte, 0),
-				audioData:      make([]byte, 0),
-			}
-			err := clip.Read(ctx, screenshotGenerator, audioGenerator)
-			if err != nil {
-				//An error here means we should just abandon this comment
-				//as it will generate a bad video once stitched
-				log.Println(errors.Wrap(err, "could not generate clip"))
-				continue Comment
-			}
-			vw.clips = append(vw.clips, clip)
+		err := vw.processText(ctx, screenshotGenerator, audioGenerator, c.Body)
+		if err != nil {
+			log.Println(errors.Wrap(err, fmt.Sprintf("could not process comment id: %s//%s", vw.post.ID, c.ID)))
+			continue
 		}
 	}
 
@@ -72,7 +62,7 @@ Comment:
 		return
 	}
 
-	defer os.RemoveAll(dirName)
+	//defer os.RemoveAll(dirName)
 	stitchedClips, err := vw.StitchClips(dirName)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not create video"))
@@ -86,6 +76,44 @@ Comment:
 	log.Printf("Finished video (id: %s) at %s after %s seconds\n", vw.post.ID, time.Now().Format(time.Stamp), time.Now().Sub(startedTime)/time.Second)
 
 	finished <- final
+}
+
+func (vw *VideoWorker) processPost(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator) error {
+	screenshotGenerator.renderType = PostRender
+	screenshotGenerator.Karma = vw.post.Ups
+	screenshotGenerator.Username = vw.post.Author
+	err := vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.Title)
+	if err != nil {
+		return errors.Wrap(err, "could not process post title")
+	}
+	if vw.post.IsSelf {
+		screenshotGenerator.renderType = SelfPostRender
+		err = vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.SelfText)
+		if err != nil {
+			return errors.Wrap(err, "could not process post title")
+		}
+	}
+	return nil
+}
+
+func (vw *VideoWorker) processText(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, text string) error {
+	splitText := strings.Split(text, "\n")
+	for _, line := range splitText {
+		screenshotGenerator.Text += line
+		audioGenerator.Text = line
+		clip := Clip{
+			screenshotData: make([]byte, 0),
+			audioData:      make([]byte, 0),
+		}
+		err := clip.Read(ctx, screenshotGenerator, audioGenerator)
+		if err != nil {
+			//An error here means we should just abandon this clip
+			//as it will generate a bad video once stitched
+			return errors.Wrap(err, "could not generate clip")
+		}
+		vw.clips = append(vw.clips, clip)
+	}
+	return nil
 }
 
 func (vw *VideoWorker) StitchClips(dirName string) ([]string, error) {
