@@ -15,11 +15,12 @@ import (
 type RenderType string
 
 const (
-	PostRender    RenderType = "post"
-	CommentRender            = "comment"
+	PostRender     RenderType = "post"
+	SelfPostRender            = "self_post"
+	CommentRender             = "comment"
 )
 
-type ScreenshotReader struct {
+type ScreenshotGenerator struct {
 	client     *http.Client
 	renderType RenderType
 	Username   string
@@ -27,7 +28,7 @@ type ScreenshotReader struct {
 	Text       string
 }
 
-func (r *ScreenshotReader) takeScreenshot(res *[]byte) chromedp.Tasks {
+func (r *ScreenshotGenerator) takeScreenshot(res *[]byte) chromedp.Tasks {
 	URL := url.URL{
 		Scheme: "http",
 		Host:   fmt.Sprintf("localhost:%s", os.Getenv("PORT")),
@@ -50,12 +51,13 @@ func (r *ScreenshotReader) takeScreenshot(res *[]byte) chromedp.Tasks {
 
 }
 
-func (r ScreenshotReader) Read(b []byte) (n int, err error) {
-	ctx, cancel := chromedp.NewContext(context.Background())
+func (r ScreenshotGenerator) Generate(ctx context.Context) ([]byte, error) {
+	ctx, cancel := chromedp.NewContext(ctx)
 	defer cancel()
-	err = chromedp.Run(ctx, r.takeScreenshot(&b))
+	var b []byte
+	err := chromedp.Run(ctx, r.takeScreenshot(&b))
 	if err != nil {
-		return len(b), errors.Wrap(err, "could not create screenshot")
+		return nil, errors.Wrap(err, "could not generate screenshot")
 	}
-	return len(b), nil
+	return b, nil
 }

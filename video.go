@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"github.com/turnage/graw/reddit"
-	"io"
 	"log"
-	"net/http"
 	"strings"
 )
+
+type Generator interface {
+	Generate(ctx context.Context) ([]byte, error)
+}
 
 type VideoWorker struct {
 	post     *reddit.Post
@@ -28,27 +31,25 @@ func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) VideoWorker {
 	}
 }
 
-func (vw *VideoWorker) Process(finished chan<- []byte) {
+func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, finished chan<- []byte) {
 	clips := make([]Clip, 0)
-
 Comment:
 	for _, c := range vw.comments {
-		sr := ScreenshotReader{
-			client:     http.DefaultClient,
-			renderType: CommentRender,
-			Username:   c.Author,
-			Karma:      c.Ups,
-			Text:       "",
-		}
+		screenshotGenerator.renderType = CommentRender
+		screenshotGenerator.Username = c.Author
+		screenshotGenerator.Karma = c.Ups
+
 		//TODO - Implement an actual processing lib here to split text naturally
-		splitText := strings.Split(c.Body, " ")
+		splitText := strings.Split(c.Body, "\n")
+		log.Println(len(splitText))
 		for _, line := range splitText {
-			sr.Text += line
+			screenshotGenerator.Text += line
+			audioGenerator.Text += line
 			clip := Clip{
 				screenshotData: make([]byte, 0),
 				voiceData:      make([]byte, 0),
 			}
-			err := clip.Read(sr, nil)
+			err := clip.Read(ctx, screenshotGenerator, audioGenerator)
 			if err != nil {
 				//An error here means we should just abandon this comment
 				//as it will generate a bad video once stitched
@@ -89,12 +90,12 @@ func (vw *VideoWorker) finalStitch(stitchedClips [][]byte) ([]byte, error) {
 	return final, nil
 }
 
-func (c *Clip) Read(screenshotReader io.Reader, audioReader io.Reader) (err error) {
-	_, err = screenshotReader.Read(c.screenshotData)
+func (c *Clip) Read(ctx context.Context, screenshotGen Generator, audioGen Generator) (err error) {
+	c.screenshotData, err = screenshotGen.Generate(ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not read screenshot data")
 	}
-	_, err = audioReader.Read(c.screenshotData)
+	c.voiceData, err = audioGen.Generate(ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not read audio data")
 	}

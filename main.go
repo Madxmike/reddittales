@@ -1,10 +1,12 @@
 package main
 
 import (
+	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	"context"
 	"flag"
 	"github.com/pkg/errors"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
@@ -33,6 +35,17 @@ func main() {
 	}
 
 	finished := make(chan []byte, 0)
+	ctx := context.Background()
+	ttsClient, err := texttospeech.NewClient(ctx)
+	if err != nil {
+		panic(errors.Wrap(err, "could not create tts client"))
+	}
+	screenshotGenerator := ScreenshotGenerator{
+		client: http.DefaultClient,
+	}
+	audioGenerator := AudioGenerator{
+		client: ttsClient,
+	}
 	for _, p := range posts {
 		comments, err := rw.GetComments(p, 15, FilterDistinguished, FilterKarma(1000))
 		if err != nil {
@@ -40,7 +53,7 @@ func main() {
 			continue
 		}
 		vw := newVideoWorker(p, comments)
-		go vw.Process(finished)
+		go vw.Process(ctx, screenshotGenerator, audioGenerator, finished)
 	}
 
 	go func() {
