@@ -13,13 +13,16 @@ import (
 )
 
 var (
-	AgentFile = flag.String("agentFile", "", "The filepath of the agent file")
+	AgentFile          = flag.String("agentFile", "", "The filepath of the agent file")
+	MaxTokensPerScreen = flag.Int("maxTokensPerScreen", 35, "The maximum tokens allowed before reseting the screen's text")
 )
 
 func main() {
 	flag.Parse()
-	if AgentFile == nil {
-		panic(errors.New("agent file not provided"))
+
+	//TODO - Cobra
+	if AgentFile == nil || MaxTokensPerScreen == nil {
+		panic(errors.New("flags not provided"))
 	}
 
 	rw, err := NewRedditWorker(*AgentFile)
@@ -47,12 +50,12 @@ func main() {
 		client: ttsClient,
 	}
 	for _, p := range posts {
-		comments, err := rw.GetComments(p, 15, FilterDistinguished, FilterKarma(1000))
+		comments, err := rw.GetComments(p, 5, FilterDistinguished, FilterKarma(1000))
 		if err != nil {
 			log.Println(errors.Wrap(err, "could not retrieve post comments"))
 			continue
 		}
-		vw, err := newVideoWorker(p, comments)
+		vw, err := newVideoWorker(p, comments, *MaxTokensPerScreen)
 		if err != nil {
 			log.Println(errors.Wrap(err, "could not process video"))
 			continue
