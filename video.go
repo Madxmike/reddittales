@@ -90,7 +90,7 @@ func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator Screensh
 		return
 	}
 
-	//defer os.RemoveAll(dirName)
+	defer os.RemoveAll(dirName)
 	stitchedClips, err := vw.StitchClips(dirName)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not create video"))
