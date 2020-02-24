@@ -13,16 +13,15 @@ import (
 )
 
 var (
-	AgentFile          = flag.String("agentFile", "", "The filepath of the agent file")
-	MaxTokensPerScreen = flag.Int("maxTokensPerScreen", 35, "The maximum tokens allowed before reseting the screen's text")
+	AgentFile = flag.String("agentFile", "", "The filepath of the agent file")
 )
 
 func main() {
 	flag.Parse()
 
 	//TODO - Cobra
-	if AgentFile == nil || MaxTokensPerScreen == nil {
-		panic(errors.New("flags not provided"))
+	if AgentFile == nil {
+		panic(errors.New("agent file not provided"))
 	}
 
 	rw, err := NewRedditWorker(*AgentFile)
@@ -32,7 +31,7 @@ func main() {
 
 	go StartServer(os.Getenv("PORT"))
 
-	posts, err := rw.ScrapePosts("askreddit", "top", "day", 1)
+	posts, err := rw.ScrapePosts("askreddit", "top", "day", 4)
 	if err != nil {
 		panic(errors.Wrap(err, "could not scrape posts"))
 	}
@@ -55,7 +54,7 @@ func main() {
 			log.Println(errors.Wrap(err, "could not retrieve post comments"))
 			continue
 		}
-		vw, err := newVideoWorker(p, comments, *MaxTokensPerScreen)
+		vw, err := newVideoWorker(p, comments)
 		if err != nil {
 			log.Println(errors.Wrap(err, "could not process video"))
 			continue

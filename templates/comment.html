@@ -19,7 +19,7 @@
                         <span class="col-auto pl-0" id="karma">{{.Karma}} points</span>
                     </div>
                     <div class="row" id="text-row">
-                        <span class="col-12">{{.Text}}</span>
+                        <span class="col-12 overflow-auto" id="comment-text">{{.Text}}</span>
                     </div>
                     <div class="row">
                         <ul class="col-12 list-inline post_buttons justify-content-start">
@@ -38,5 +38,8 @@
             </div>
         </div>
         </body>
+        <script>
+            $('#text-row').scrollTop($('#text-row').height())
+        </script>
         </html>
 {{end}}

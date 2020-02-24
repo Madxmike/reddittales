@@ -24,11 +24,10 @@ type Generator interface {
 }
 
 type VideoWorker struct {
-	tokenizer          *sentences.DefaultSentenceTokenizer
-	maxTokensPerScreen int
-	post               *reddit.Post
-	comments           []*reddit.Comment
-	clips              []Clip
+	tokenizer *sentences.DefaultSentenceTokenizer
+	post      *reddit.Post
+	comments  []*reddit.Comment
+	clips     []Clip
 }
 
 type Clip struct {
@@ -36,17 +35,16 @@ type Clip struct {
 	audioData      []byte
 }
 
-func newVideoWorker(post *reddit.Post, comments []*reddit.Comment, maxTokensPerScreen int) (VideoWorker, error) {
+func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) (VideoWorker, error) {
 	tokenizer, err := english.NewSentenceTokenizer(nil)
 	if err != nil {
 		return VideoWorker{}, errors.Wrap(err, "could not create video worker")
 	}
 	return VideoWorker{
-		tokenizer:          tokenizer,
-		maxTokensPerScreen: maxTokensPerScreen,
-		post:               post,
-		comments:           comments,
-		clips:              make([]Clip, 0),
+		tokenizer: tokenizer,
+		post:      post,
+		comments:  comments,
+		clips:     make([]Clip, 0),
 	}, nil
 }
 
@@ -147,10 +145,7 @@ func (vw *VideoWorker) processText(ctx context.Context, screenshotGenerator Scre
 	audioCtx, audioCancel := screenshotGenerator.CreateContext(ctx)
 	defer screenshotCancel()
 	defer audioCancel()
-	for k, token := range tokens {
-		if k%vw.maxTokensPerScreen == 0 {
-			screenshotGenerator.Text = ""
-		}
+	for _, token := range tokens {
 		screenshotGenerator.Text += token.Text
 		audioGenerator.Text = token.Text
 		clip := Clip{
