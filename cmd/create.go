@@ -25,6 +25,9 @@ func CreateCmd() *cobra.Command {
 	var maximumNumComments int
 	var filterDistiguishedComments bool
 	var commentKarmaThreshold int
+	var backgroundFile string
+	var intermissionFile string
+	var musicFile string
 	create := &cobra.Command{
 		Use:   "create [subreddit name]",
 		Short: "creates a video from the specified parameters",
@@ -66,7 +69,7 @@ func CreateCmd() *cobra.Command {
 					log.Println(errors.Wrap(err, "could not retrieve post comments"))
 					continue
 				}
-				vw, err := internal.NewVideoWorker(p, comments)
+				vw, err := internal.NewVideoWorker(p, comments, backgroundFile, intermissionFile, musicFile)
 				if err != nil {
 					log.Println(errors.Wrap(err, "could not process video"))
 					continue
@@ -105,5 +108,9 @@ func CreateCmd() *cobra.Command {
 	create.Flags().IntVar(&maximumNumComments, "maximumNumComments", 10, "the maximum number of comments included")
 	create.Flags().BoolVar(&filterDistiguishedComments, "filterDistinguished", true, "filter distinguished comments i.e. automod")
 	create.Flags().IntVar(&commentKarmaThreshold, "commentKarmaThreshold", 1000, "the minimum karma required for a comment to be included")
+
+	create.Flags().StringVar(&backgroundFile, "backgroundFile", "", "the path to the background image or video file (NYI)")
+	create.Flags().StringVar(&intermissionFile, "intermissionFile", "", "the path to the intermission video file (NYI)")
+	create.Flags().StringVar(&musicFile, "musicFile", "", "the path to the music file (NYI)")
 	return create
 }

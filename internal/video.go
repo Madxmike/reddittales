@@ -28,6 +28,10 @@ type VideoWorker struct {
 	post      *reddit.Post
 	comments  []*reddit.Comment
 	clips     []Clip
+
+	backgroundFilename   string
+	intermissionFilename string
+	musicFilename        string
 }
 
 type Clip struct {
@@ -35,7 +39,7 @@ type Clip struct {
 	audioData      []byte
 }
 
-func NewVideoWorker(post *reddit.Post, comments []*reddit.Comment) (VideoWorker, error) {
+func NewVideoWorker(post *reddit.Post, comments []*reddit.Comment, backgroundFilename, intermissionFilename, musicFilename string) (VideoWorker, error) {
 	tokenizer, err := english.NewSentenceTokenizer(nil)
 	if err != nil {
 		return VideoWorker{}, errors.Wrap(err, "could not create video worker")
