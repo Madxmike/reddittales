@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -20,7 +20,7 @@ const (
 )
 
 type ScreenshotGenerator struct {
-	client     *http.Client
+	Client     *http.Client
 	renderType RenderType
 	Username   string
 	Karma      int32

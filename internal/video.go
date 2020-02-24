@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"context"
@@ -35,7 +35,7 @@ type Clip struct {
 	audioData      []byte
 }
 
-func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) (VideoWorker, error) {
+func NewVideoWorker(post *reddit.Post, comments []*reddit.Comment) (VideoWorker, error) {
 	tokenizer, err := english.NewSentenceTokenizer(nil)
 	if err != nil {
 		return VideoWorker{}, errors.Wrap(err, "could not create video worker")

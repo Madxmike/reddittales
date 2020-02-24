@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"fmt"
@@ -44,6 +44,10 @@ func (r *RedditWorker) GetComments(post *reddit.Post, amount int, filters ...fun
 	comments := make([]*reddit.Comment, 0, amount)
 	for _, reply := range post.Replies {
 		if len(comments) < cap(comments) {
+			if len(filters) == 0 {
+				comments = append(comments, reply)
+				continue
+			}
 			for _, filter := range filters {
 				if !filter(reply) {
 					continue

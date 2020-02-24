@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	texttospeech "cloud.google.com/go/texttospeech/apiv1"
@@ -8,7 +8,7 @@ import (
 )
 
 type AudioGenerator struct {
-	client *texttospeech.Client
+	Client *texttospeech.Client
 	Text   string
 }
 
@@ -25,7 +25,7 @@ func (r AudioGenerator) Generate(ctx context.Context) ([]byte, error) {
 			AudioEncoding: texttospeechpb.AudioEncoding_MP3,
 		},
 	}
-	resp, err := r.client.SynthesizeSpeech(ctx, &req)
+	resp, err := r.Client.SynthesizeSpeech(ctx, &req)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not generate audio")
 	}
