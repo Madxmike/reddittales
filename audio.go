@@ -31,3 +31,7 @@ func (r AudioGenerator) Generate(ctx context.Context) ([]byte, error) {
 	}
 	return resp.AudioContent, nil
 }
+
+func (r AudioGenerator) CreateContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithCancel(ctx)
+}

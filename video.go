@@ -5,23 +5,29 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/turnage/graw/reddit"
+	stripmd "github.com/writeas/go-strip-markdown"
+	"gopkg.in/neurosnap/sentences.v1"
+	"gopkg.in/neurosnap/sentences.v1/english"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Generator interface {
 	Generate(ctx context.Context) ([]byte, error)
+	CreateContext(ctx context.Context) (context.Context, context.CancelFunc)
 }
 
 type VideoWorker struct {
-	post     *reddit.Post
-	comments []*reddit.Comment
-	clips    []Clip
+	tokenizer *sentences.DefaultSentenceTokenizer
+	post      *reddit.Post
+	comments  []*reddit.Comment
+	clips     []Clip
 }
 
 type Clip struct {
@@ -29,12 +35,17 @@ type Clip struct {
 	audioData      []byte
 }
 
-func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) VideoWorker {
-	return VideoWorker{
-		post:     post,
-		comments: comments,
-		clips:    make([]Clip, 0),
+func newVideoWorker(post *reddit.Post, comments []*reddit.Comment) (VideoWorker, error) {
+	tokenizer, err := english.NewSentenceTokenizer(nil)
+	if err != nil {
+		return VideoWorker{}, errors.Wrap(err, "could not create video worker")
 	}
+	return VideoWorker{
+		tokenizer: tokenizer,
+		post:      post,
+		comments:  comments,
+		clips:     make([]Clip, 0),
+	}, nil
 }
 
 func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, finished chan<- []byte) {
@@ -45,16 +56,33 @@ func (vw *VideoWorker) Process(ctx context.Context, screenshotGenerator Screensh
 		log.Println(errors.Wrap(err, fmt.Sprintf("could not process post title id: %s", vw.post.ID)))
 		return
 	}
+	log.Printf("Generating clips for %d comments for id: %s\n", len(vw.comments), vw.post.ID)
+	var wg sync.WaitGroup
+	clipReturn := make(chan []Clip, len(vw.comments))
+
 	for _, c := range vw.comments {
-		screenshotGenerator.renderType = CommentRender
-		screenshotGenerator.Username = c.Author
-		screenshotGenerator.Karma = c.Ups
-		err := vw.processText(ctx, screenshotGenerator, audioGenerator, c.Body)
-		if err != nil {
-			log.Println(errors.Wrap(err, fmt.Sprintf("could not process comment id: %s//%s", vw.post.ID, c.ID)))
-			continue
-		}
+		wg.Add(1)
+		go func(comment *reddit.Comment) {
+			log.Printf("Generating clips for comment id: %s/%s\n", vw.post.ID, comment.ID)
+			clips, err := vw.processComment(ctx, screenshotGenerator, audioGenerator, comment)
+			if err != nil {
+				log.Println(errors.Wrap(err, fmt.Sprintf("could not process comment id: %s//%s", vw.post.ID, comment.ID)))
+			}
+
+			clipReturn <- clips
+			wg.Done()
+			log.Printf("Finished generating clips for comment id: %s/%s\n", vw.post.ID, comment.ID)
+
+		}(c)
 	}
+
+	wg.Wait()
+	close(clipReturn)
+	log.Printf("Finish generating clips for %s\n", vw.post.ID)
+	for clips := range clipReturn {
+		vw.clips = append(vw.clips, clips...)
+	}
+	log.Printf("Generated %d clips for id: %s\n", len(vw.clips), vw.post.ID)
 
 	dirName, err := ioutil.TempDir("", vw.post.ID)
 	if err != nil {
@@ -82,41 +110,66 @@ func (vw *VideoWorker) processPost(ctx context.Context, screenshotGenerator Scre
 	screenshotGenerator.renderType = PostRender
 	screenshotGenerator.Karma = vw.post.Ups
 	screenshotGenerator.Username = vw.post.Author
-	err := vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.Title)
+	clips, err := vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.Title)
 	if err != nil {
 		return errors.Wrap(err, "could not process post title")
 	}
 	if vw.post.SelfText != "" {
 		screenshotGenerator.renderType = SelfPostRender
-		err = vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.SelfText)
+		clips, err = vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.SelfText)
 		if err != nil {
 			return errors.Wrap(err, "could not process post title")
 		}
 	}
+	vw.clips = append(vw.clips, clips...)
 	return nil
 }
 
-func (vw *VideoWorker) processText(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, text string) error {
-	splitText := strings.Split(text, "\n")
-	for _, line := range splitText {
-		screenshotGenerator.Text += line
-		audioGenerator.Text = line
+func (vw *VideoWorker) processComment(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, comment *reddit.Comment) ([]Clip, error) {
+	screenshotGenerator.renderType = CommentRender
+	screenshotGenerator.Karma = comment.Ups
+	screenshotGenerator.Username = comment.Author
+	clips, err := vw.processText(ctx, screenshotGenerator, audioGenerator, comment.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not process comment")
+	}
+	return clips, nil
+}
+
+func (vw *VideoWorker) processText(ctx context.Context, screenshotGenerator ScreenshotGenerator, audioGenerator AudioGenerator, text string) ([]Clip, error) {
+	clips := make([]Clip, 0)
+	text = stripmd.Strip(text)
+	text = strings.ReplaceAll(text, "&gt;", "")
+	tokens := vw.tokenizer.Tokenize(text)
+	screenshotCtx, screenshotCancel := screenshotGenerator.CreateContext(ctx)
+	audioCtx, audioCancel := screenshotGenerator.CreateContext(ctx)
+	defer screenshotCancel()
+	defer audioCancel()
+	for _, token := range tokens {
+		screenshotGenerator.Text += token.Text
+		audioGenerator.Text = token.Text
 		clip := Clip{
 			screenshotData: make([]byte, 0),
 			audioData:      make([]byte, 0),
 		}
-		err := clip.Read(ctx, screenshotGenerator, audioGenerator)
+		//An error here means we should just abandon this clip
+		//as it will generate a bad video once stitched
+		err := clip.ReadScreenshotData(screenshotCtx, screenshotGenerator)
 		if err != nil {
-			//An error here means we should just abandon this clip
-			//as it will generate a bad video once stitched
-			return errors.Wrap(err, "could not generate clip")
+			return nil, errors.Wrap(err, "could not generate clip")
 		}
-		vw.clips = append(vw.clips, clip)
+		err = clip.ReadAudioData(audioCtx, audioGenerator)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not generate clip")
+		}
+		clips = append(clips, clip)
 	}
-	return nil
+	return clips, nil
 }
 
 func (vw *VideoWorker) StitchClips(dirName string) ([]string, error) {
+	//Don't try and throw this into a go-routine. The cpu, memory, and disk will hate
+	//you as 300+ ffmpeg instances are launched
 	stitchedClips := make([]string, 0, len(vw.clips))
 	for k, clip := range vw.clips {
 		stitched, err := clip.Stitch(dirName, strconv.Itoa(k))
@@ -125,6 +178,7 @@ func (vw *VideoWorker) StitchClips(dirName string) ([]string, error) {
 		}
 		stitchedClips = append(stitchedClips, stitched)
 	}
+
 	return stitchedClips, nil
 }
 
@@ -157,12 +211,16 @@ func (vw *VideoWorker) finalStitch(stitchedClips []string, dirName string) ([]by
 	return b, nil
 }
 
-func (c *Clip) Read(ctx context.Context, screenshotGen Generator, audioGen Generator) (err error) {
-	c.screenshotData, err = screenshotGen.Generate(ctx)
+func (c *Clip) ReadScreenshotData(ctx context.Context, generator Generator) (err error) {
+	c.screenshotData, err = generator.Generate(ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not read screenshot data")
 	}
-	c.audioData, err = audioGen.Generate(ctx)
+	return nil
+}
+
+func (c *Clip) ReadAudioData(ctx context.Context, generator Generator) (err error) {
+	c.audioData, err = generator.Generate(ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not read audio data")
 	}

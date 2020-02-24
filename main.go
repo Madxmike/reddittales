@@ -52,7 +52,11 @@ func main() {
 			log.Println(errors.Wrap(err, "could not retrieve post comments"))
 			continue
 		}
-		vw := newVideoWorker(p, comments)
+		vw, err := newVideoWorker(p, comments)
+		if err != nil {
+			log.Println(errors.Wrap(err, "could not process video"))
+			continue
+		}
 		go vw.Process(ctx, screenshotGenerator, audioGenerator, finished)
 	}
 

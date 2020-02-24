@@ -45,7 +45,7 @@ func (r *RedditWorker) GetComments(post *reddit.Post, amount int, filters ...fun
 	for _, reply := range post.Replies {
 		if len(comments) < cap(comments) {
 			for _, filter := range filters {
-				if filter(reply) {
+				if !filter(reply) {
 					continue
 				}
 				comments = append(comments, reply)

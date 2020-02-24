@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"time"
 )
 
 type RenderType string
@@ -51,14 +50,14 @@ func (r *ScreenshotGenerator) takeScreenshot(res *[]byte) chromedp.Tasks {
 }
 
 func (r ScreenshotGenerator) Generate(ctx context.Context) ([]byte, error) {
-
-	timeout, _ := context.WithTimeout(ctx, 30*time.Second)
-	ctx, cancel := chromedp.NewContext(timeout)
-	defer cancel()
 	var b []byte
 	err := chromedp.Run(ctx, r.takeScreenshot(&b))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not generate screenshot")
 	}
 	return b, nil
+}
+
+func (r ScreenshotGenerator) CreateContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return chromedp.NewContext(ctx)
 }

@@ -13,4 +13,5 @@ require (
 	github.com/turnage/graw v0.0.0-20191224200831-a592320d5bc9
 	github.com/writeas/go-strip-markdown v2.0.1+incompatible
 	google.golang.org/genproto v0.0.0-20191230161307-f3c370f40bfb
+	gopkg.in/neurosnap/sentences.v1 v1.0.6
 )
