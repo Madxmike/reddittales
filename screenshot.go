@@ -37,17 +37,19 @@ func (r *ScreenshotGenerator) takeScreenshot(res *[]byte) chromedp.Tasks {
 	}
 	query := URL.Query()
 	query.Add("render", string(r.renderType))
-	query.Add("username", r.Username)
+	query.Add("author", r.Username)
 	query.Add("karma", strconv.Itoa(int(r.Karma)))
 	query.Add("text", r.Text)
 
 	URL.RawQuery = query.Encode()
 	if r.renderType == PostRender {
 		log.Println(URL.String())
+		log.Printf(r.Text)
 	}
 	return chromedp.Tasks{
 		chromedp.Navigate(URL.String()),
 		chromedp.WaitVisible("#main", chromedp.ByID),
+		chromedp.EmulateViewport(1920, 1080),
 		chromedp.Screenshot("#main", res, chromedp.NodeVisible, chromedp.ByID),
 	}
 
@@ -55,7 +57,7 @@ func (r *ScreenshotGenerator) takeScreenshot(res *[]byte) chromedp.Tasks {
 
 func (r ScreenshotGenerator) Generate(ctx context.Context) ([]byte, error) {
 
-	timeout, _ := context.WithTimeout(ctx, 5*time.Second)
+	timeout, _ := context.WithTimeout(ctx, 30*time.Second)
 	ctx, cancel := chromedp.NewContext(timeout)
 	defer cancel()
 	var b []byte

@@ -4,21 +4,50 @@
     <head>
         <meta charset="UTF-8">
         <title>RedditTales</title>
-        <link type="text/css" href="/static/css/index.css">
+        <link rel="stylesheet" type="text/css" href="/static/css/index.css">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
     </head>
     <body>
-    <div id="main">
-        <div class="karma-container">
-            <span class="upvote_post"></span>
-            <span id="karma">{{.Karma}}</span>
-            <span class="downvote_post"></span>
-        </div>
-        <div class="title-container">
-            <span id="title">{{.Text}}</span>
-            <span id="username">
-                <span class="subtext">submitted by</span>
-                <span class="link">{{.username}}</span>
-            </span>
+    <div class="container-fluid" id="main">
+        <div class="row align-items-center">
+            <div class="col-1 container-fluid " id="karma-container">
+                <div class="row justify-content-center">
+                    <span class="upvote_post"></span>
+                </div>
+                <span class="row justify-content-center" id="karma">{{.Karma}}</span>
+                <div class="row justify-content-center">
+                    <span class="downvote_post"></span>
+                </div>
+            </div>
+            <div class="col-11 container-fluid p-0" id="title-container">
+                <div class="row">
+                    <span class="col-12" id="title">{{.Text}}</span>
+                </div>
+                <div class="row" id="tagline">
+                    <span class="col-12">
+                        <span class="subtext">submitted by</span>
+                        <a href="#" class="author">{{.Author}}</a>
+                    </span>
+
+                </div>
+                <div class="row">
+                    <ul class="col-12 list-inline post_buttons justify-content-start">
+                        <li class="list-inline-item" id="comments">comments</li>
+                        <li class="list-inline-item">source</li>
+                        <li class="list-inline-item">share</li>
+                        <li class="list-inline-item">save</li>
+                        <li class="list-inline-item">hide</li>
+                        <li class="list-inline-item gold">give award</li>
+                        <li class="list-inline-item">report</li>
+                        <li class="list-inline-item">crosspost</li>
+                        <li class="list-inline-item">hide all child comments</li>
+                    </ul>
+                </div>
+
+            </div>
         </div>
     </div>
     </body>

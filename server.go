@@ -18,7 +18,7 @@ func StartServer(port string) {
 		panic(errors.Wrap(err, "could not start server"))
 	}
 	r.Handle("/screenshot", h)
-	r.Handle("/static", Static("/static/"))
+	r.PathPrefix("/static/").Handler(Static("/static/"))
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: r,
@@ -53,10 +53,24 @@ func newTemplateHandler(templatePath string) (*TemplateHandler, error) {
 }
 
 func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
+	t, err := template.ParseGlob("./templates/*")
+	if err != nil {
+		return
+	}
+	h.t = t
 	query := r.URL.Query()
 	renderType := query.Get("render")
-	err := h.t.ExecuteTemplate(w, renderType, query)
+	data := struct {
+		Author string
+		Karma  string
+		Text   string
+	}{
+		Author: query.Get("author"),
+		Karma:  query.Get("karma"),
+		Text:   query.Get("text"),
+	}
+
+	err = h.t.ExecuteTemplate(w, renderType, data)
 	if err != nil {
 		log.Println(errors.Wrap(err, "could not serve template"))
 		http.Error(w, err.Error(), http.StatusInternalServerError)

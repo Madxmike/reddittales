@@ -86,7 +86,7 @@ func (vw *VideoWorker) processPost(ctx context.Context, screenshotGenerator Scre
 	if err != nil {
 		return errors.Wrap(err, "could not process post title")
 	}
-	if vw.post.IsSelf {
+	if vw.post.SelfText != "" {
 		screenshotGenerator.renderType = SelfPostRender
 		err = vw.processText(ctx, screenshotGenerator, audioGenerator, vw.post.SelfText)
 		if err != nil {
