@@ -1,13 +1,41 @@
 {{define "comment"}}
         <!DOCTYPE html>
         <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>RedditTales</title>
-        </head>
+        {{template "header"}}
         <body>
-        <div id="main">
-            <p class="username">{{.Author}}</p>
+        <div class="container-fluid" id="main">
+            <div class="row align-items-center">
+                <div class="col-1 container" id="karma-container">
+                    <div class="row justify-content-center">
+                        <span class="upvote_post"></span>
+                    </div>
+                    <div class="row justify-content-center">
+                        <span class="downvote_post"></span>
+                    </div>
+                </div>
+                <div class="col-11 container" id="comment-container">
+                    <div class="row" id="author-row">
+                        <a class="col-auto author pr-0" href="#">[-] {{.Author}}</a>
+                        <span class="col-auto pl-0" id="karma">{{.Karma}} points</span>
+                    </div>
+                    <div class="row" id="text-row">
+                        <span class="col-12">{{.Text}}</span>
+                    </div>
+                    <div class="row">
+                        <ul class="col-12 list-inline post_buttons justify-content-start">
+                            <li class="list-inline-item">permalink</li>
+                            <li class="list-inline-item">source</li>
+                            <li class="list-inline-item">embed</li>
+                            <li class="list-inline-item">save</li>
+                            <li class="list-inline-item">hide</li>
+                            <li class="list-inline-item">report</li>
+                            <li class="list-inline-item gold">give award</li>
+                            <li class="list-inline-item">reply</li>
+                            <li class="list-inline-item">hide child comments</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
         </body>
         </html>
