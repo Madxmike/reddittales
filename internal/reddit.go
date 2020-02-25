@@ -20,6 +20,18 @@ func NewRedditWorker(agentFile string) (*RedditWorker, error) {
 	return &RedditWorker{Bot: conn}, nil
 }
 
+func (r *RedditWorker) GetPosts(permalinks ...string) ([]*reddit.Post, error) {
+	posts := make([]*reddit.Post, 0)
+	for _, link := range permalinks {
+		post, err := r.Thread(link)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not retrieve post")
+		}
+		posts = append(posts, post)
+	}
+	return posts, nil
+}
+
 func (r *RedditWorker) ScrapePosts(subreddit string, sortBy string, age string, numPosts int) ([]*reddit.Post, error) {
 	listingParams := map[string]string{
 		"limit": strconv.Itoa(numPosts),
@@ -35,8 +47,8 @@ func (r *RedditWorker) ScrapePosts(subreddit string, sortBy string, age string, 
 	return harvest.Posts, nil
 }
 
-func (r *RedditWorker) GetComments(post *reddit.Post, amount int, filters ...func(c *reddit.Comment) bool) ([]*reddit.Comment, error) {
-	post, err := r.Thread(post.Permalink)
+func (r *RedditWorker) GetComments(permalink string, amount int, filters ...func(c *reddit.Comment) bool) ([]*reddit.Comment, error) {
+	post, err := r.Thread(permalink)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get full post")
 	}

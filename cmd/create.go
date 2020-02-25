@@ -17,9 +17,9 @@ import (
 )
 
 func CreateCmd() *cobra.Command {
-	var sort string
-	var time string
-	var num int
+	//var sort string
+	//var time string
+	//var num int
 	var outputPath string
 	var outputFiletype string
 	var maximumNumComments int
@@ -29,18 +29,22 @@ func CreateCmd() *cobra.Command {
 	var intermissionFile string
 	var musicFile string
 	create := &cobra.Command{
-		Use:   "create [subreddit name]",
+		Use:   "create [thread permalink]",
 		Short: "creates a video from the specified parameters",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			rw, err := internal.NewRedditWorker(agentFile)
 			if err != nil {
 				QuitError(errors.Wrap(err, "could not create reddit worker"))
 			}
-			posts, err := rw.ScrapePosts(args[0], sort, time, num)
+			posts, err := rw.GetPosts(args...)
 			if err != nil {
-				QuitError(errors.Wrap(err, "could not scrape reddit posts"))
+				QuitError(errors.Wrap(err, "could not get posts"))
 			}
+			//posts, err := rw.ScrapePosts(args[0], sort, time, num)
+			//if err != nil {
+			//	QuitError(errors.Wrap(err, "could not scrape reddit posts"))
+			//}
 			go internal.StartServer(port)
 
 			finished := make(chan []byte, 0)
@@ -64,7 +68,7 @@ func CreateCmd() *cobra.Command {
 			}
 
 			for _, p := range posts {
-				comments, err := rw.GetComments(p, maximumNumComments, filters...)
+				comments, err := rw.GetComments(p.Permalink, maximumNumComments, filters...)
 				if err != nil {
 					log.Println(errors.Wrap(err, "could not retrieve post comments"))
 					continue
@@ -87,6 +91,8 @@ func CreateCmd() *cobra.Command {
 			}()
 			fileNum := 0
 			for data := range finished {
+				fileNum++
+
 				fileName := fmt.Sprintf("output_%d.%s", fileNum, outputFiletype)
 				if outputPath != "" {
 					outputPath = strings.TrimSuffix(outputPath, string(os.PathSeparator))
@@ -100,9 +106,9 @@ func CreateCmd() *cobra.Command {
 			}
 		},
 	}
-	create.Flags().StringVar(&sort, "sort", "top", "how to sort subreddit posts")
-	create.Flags().StringVar(&time, "time", "day", "filter subreddit posts by time")
-	create.Flags().IntVar(&num, "num", 1, "how many posts should be retrieved")
+	//create.Flags().StringVar(&sort, "sort", "top", "how to sort subreddit posts")
+	//create.Flags().StringVar(&time, "time", "day", "filter subreddit posts by time")
+	//create.Flags().IntVar(&num, "num", 1, "how many posts should be retrieved")
 	create.Flags().StringVar(&outputPath, "outputPath", "", "the output directory of created files")
 	create.Flags().StringVar(&outputFiletype, "filetype", "mkv", "the file type of the finished file")
 	create.Flags().IntVar(&maximumNumComments, "maximumNumComments", 10, "the maximum number of comments included")
