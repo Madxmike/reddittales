@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.51.0
 	github.com/beefsack/go-rate v0.0.0-20180408011153-efa7637bb9b6 // indirect
 	github.com/chromedp/chromedp v0.5.2
+	github.com/gobuffalo/packr/v2 v2.7.1
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/jzelinskie/geddit v0.0.0-20190913104144-95ef6806b073
